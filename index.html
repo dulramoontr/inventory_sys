@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>庫存盤點與叫貨系統</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <div id="loader" class="hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <div id="access-view" class="view">
+    <div class="container">
+      <h1>庫存管理系統</h1>
+      <p>請輸入存取碼</p>
+      <input type="password" id="access-code-input" placeholder="存取碼">
+      <button id="login-btn">進入</button>
+      <p id="login-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <div id="app-view" class="view hidden">
+    <header>
+      <h1 id="page-title">主選單</h1>
+      <button id="home-btn" class="hidden">回主選單</button>
+    </header>
+
+    <main id="main-content">
+      <div id="home-menu" class="page">
+        <div class="card" data-target="inventory-select">庫存盤點</div>
+        <div class="card" data-target="order-select">叫貨</div>
+        <div class="card" data-target="settings-page">參數設定</div>
+      </div>
+      <div id="inventory-select" class="page hidden">
+        <div class="card" data-target="inventory-page" data-category="央廚">央廚庫存盤點</div>
+        <div class="card" data-target="inventory-page" data-category="海鮮廠商">海鮮庫存盤點</div>
+      </div>
+      <div id="inventory-page" class="page hidden">
+        <div class="toolbar">
+            <button id="load-history-btn">載入歷史紀錄</button>
+            <select id="history-dropdown" class="hidden"></select>
+        </div>
+        <div id="inventory-list" class="item-list"></div>
+        <button id="save-inventory-btn" class="action-btn">儲存盤點紀錄</button>
+      </div>
+      <div id="order-select" class="page hidden">
+        <div class="card" data-target="order-page" data-category="央廚">央廚叫貨</div>
+        <div class="card" data-target="order-page" data-category="海鮮廠商">海鮮叫貨</div>
+        <div class="card" data-target="order-page" data-category="菜商">菜商叫貨</div>
+      </div>
+      <div id="order-page" class="page hidden">
+          <div id="order-from-inventory-section" class="hidden">
+              <div id="order-history-loader">
+                  <p id="order-no-today-record" class="info-msg"></p>
+                  <select id="order-history-dropdown"></select>
+              </div>
+              <div class="order-type-selector">
+                <label>最低庫存標準：</label>
+                <input type="radio" id="min-stock-normal" name="minStockType" value="MinStockNormal" checked>
+                <label for="min-stock-normal">一般</label>
+                <input type="radio" id="min-stock-holiday" name="minStockType" value="MinStockHoliday">
+                <label for="min-stock-holiday">長假</label>
+              </div>
+          </div>
+          <div id="order-direct-input-section" class="item-list hidden"></div>
+          <button id="generate-order-btn" class="action-btn hidden">產生叫貨單</button>
+          <div id="order-output-container" class="hidden">
+              <div id="order-output">
+                  <h2 id="order-title"></h2>
+                  <p id="order-timestamp"></p>
+                  <table id="order-table">
+                      <thead><tr><th>品項</th><th>數量</th><th>單位</th></tr></thead>
+                      <tbody></tbody>
+                  </table>
+              </div>
+              <div class="toolbar">
+                  <button id="copy-text-btn">複製清單文字</button>
+                  <button id="share-line-text-btn">LINE 分享 (文字)</button>
+                  <button id="share-line-image-btn">LINE 分享 (圖檔)</button>
+              </div>
+          </div>
+      </div>
+      <div id="settings-page" class="page hidden">
+        <div id="access-code-settings">
+          <h3>修改存取碼</h3>
+          <input type="password" id="new-access-code" placeholder="新存取碼">
+          <input type="password" id="confirm-access-code" placeholder="確認新存取碼">
+          <button id="save-access-code-btn">儲存</button>
+        </div>
+        <hr>
+        <h3>品項管理</h3>
+        <div class="tabs">
+          <button class="tab-btn active" data-category="央廚">央廚</button>
+          <button class="tab-btn" data-category="海鮮廠商">海鮮廠商</button>
+          <button class="tab-btn" data-category="菜商">菜商</button>
+        </div>
+        <div id="settings-list-container">
+           <button id="add-param-btn">新增品項</button>
+           <div id="settings-list" class="item-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div id="param-modal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <h3 id="modal-title">新增品項</h3>
+      <form id="param-form">
+        <input type="hidden" id="param-ItemID">
+        <input type="hidden" id="param-Category">
+        <label>品項名稱*</label><input type="text" id="param-ItemName" required>
+        <div id="param-SubCategory-container" class="hidden">
+            <label>品項類別</label>
+            <select id="param-SubCategory">
+                <option value="蔬菜">蔬菜</option>
+                <option value="火鍋料">火鍋料</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        <label>說明文字</label><input type="text" id="param-Description">
+        <label>單位*</label><input type="text" id="param-Unit" required>
+        <div id="inventory-params-container">
+            <label>包裝方式 (用於計算)</label><input type="number" id="param-PackageFactor" value="1" min="1">
+            <label>一般最低庫存</label><input type="number" id="param-MinStockNormal" value="0" min="0">
+            <label>長假最低庫存</label><input type="number" id="param-MinStockHoliday" value="0" min="0">
+            <div>
+              <input type="checkbox" id="param-IsRequired"><label for="param-IsRequired">是否必填項目</label>
+            </div>
+        </div>
+        <button type="submit">儲存</button>
+      </form>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
