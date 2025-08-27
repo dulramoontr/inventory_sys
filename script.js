@@ -1,3 +1,5 @@
+// 全新版本的 script.js - 使用 GET 請求
+
 // --- [!!!] 重要設定：請貼上你部署好的 Google Apps Script URL ---
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzB3F7Tc7VeLKCw3R3a4Xd2kddijPaCPtNwoT38yWIT2zDoOYIEh2Iw32NERiwURXHV/exec';
 
@@ -43,19 +45,20 @@ async function runGAS(functionName, ...args) {
         throw new Error('GAS API URL not configured.');
     }
     showLoader();
+    
+    // 將要傳遞的資料打包成 JSON 字串
+    const payload = JSON.stringify({
+        functionName: functionName,
+        args: args
+    });
+
+    // 將 JSON 字串作為 URL 參數附加到 API URL 後面
+    // encodeURIComponent 確保特殊字元能被正確傳遞
+    const requestUrl = `${GAS_API_URL}?payload=${encodeURIComponent(payload)}`;
+
     try {
-        const response = await fetch(GAS_API_URL, {
-            method: 'POST',
-            // --- 修改點 START ---
-            // 我們將 Content-Type 改為 text/plain 來繞過 OPTIONS 預檢請求
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            // --- 修改點 END ---
-            body: JSON.stringify({
-                functionName: functionName,
-                args: args
-            }),
+        const response = await fetch(requestUrl, {
+            method: 'GET', // 使用 GET 方法
             redirect: "follow"
         });
 
@@ -81,6 +84,7 @@ async function runGAS(functionName, ...args) {
 }
 
 // --- INITIALIZATION & EVENT HANDLERS (無需變更, 完整複製貼上即可) ---
+// (此處以下的所有 handle... 和 render... 函式都與之前版本完全相同)
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-btn').addEventListener('click', handleLogin);
     document.getElementById('access-code-input').addEventListener('keyup', e => { if (e.key === 'Enter') handleLogin(); });
