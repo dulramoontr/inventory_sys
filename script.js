@@ -1,7 +1,7 @@
 // 全新版本 script.js - 修正 CORS 問題
 
 // --- [!!!] 重要設定：Google Apps Script URL ---
-const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzB3F7Tc7VeLKCw3R3a4Xd2kddijPaCPtNwoT38yWIT2zDoOYIEh2Iw32NERiwURXHV/exec';
+const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyZPXa8dTaOnP8TicTZqCripD9kcGP8gzLvg4jckLJlEBlLz3fbKl3-qz2HhvwUWYI0/exec';
 
 // --- GLOBAL STATE & DOM REFERENCES ---
 const appState = {
