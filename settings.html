@@ -46,11 +46,11 @@
                 <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-vg">菜商叫貨</button>
             </div>
 
-            <div id="tab-ck" class="tab-content active min-h-[100px]"></div>
-            <div id="tab-sf" class="tab-content min-h-[100px]"></div>
-            <div id="tab-vg" class="tab-content min-h-[100px]"></div>
+            <div id="tab-ck" class="tab-content active space-y-2 min-h-[100px]"></div>
+            <div id="tab-sf" class="tab-content hidden space-y-2 min-h-[100px]"></div>
+            <div id="tab-vg" class="tab-content hidden space-y-2 min-h-[100px]"></div>
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-slate-200/80">
                  <button id="add-item-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/80 text-blue-600 font-bold rounded-lg shadow-md hover:bg-white transition-all">
                     <span class="material-symbols-outlined">add</span>新增品項
                 </button>
@@ -65,7 +65,7 @@
 
     <div id="item-modal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="modal-content relative w-full max-w-lg bg-slate-50 rounded-2xl shadow-xl p-6">
-            <span class="close-btn absolute top-4 right-4 text-slate-500 hover:text-slate-800 cursor-pointer">&times;</span>
+            <span class="close-btn absolute top-4 right-4 text-slate-500 hover:text-slate-800 cursor-pointer text-3xl font-bold">&times;</span>
             <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-4">新增品項</h3>
             <form id="item-form" class="space-y-4">
                 <input type="hidden" id="modal-item-id">

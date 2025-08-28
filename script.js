@@ -11,8 +11,8 @@ let currentCategory = ''; // 用於設定頁面
 
 // --- Utility Functions ---
 const loader = document.getElementById('loader');
-const showLoader = () => loader.style.display = 'block';
-const hideLoader = () => loader.style.display = 'none';
+const showLoader = () => loader && (loader.style.display = 'block');
+const hideLoader = () => loader && (loader.style.display = 'none');
 
 async function apiRequest(method, payload) {
     showLoader();
@@ -65,79 +65,115 @@ document.addEventListener('DOMContentLoaded', () => {
 // SETTINGS PAGE LOGIC (`settings.html`)
 // =================================================================
 async function initSettingsPage() {
-    // Access Code Verification
-    const verified = sessionStorage.getItem('accessVerified');
-    if (!verified) {
-        const code = prompt('請輸入存取碼:');
-        if (!code) {
-             window.location.href = 'index.html';
-             return;
+    showLoader();
+    try {
+        const verified = sessionStorage.getItem('accessVerified');
+        if (!verified) {
+            const code = prompt('請輸入存取碼:');
+            if (!code) {
+                 window.location.href = 'index.html';
+                 return;
+            }
+            const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
+            if (result && result.success) {
+                sessionStorage.setItem('accessVerified', 'true');
+            } else {
+                alert('存取碼錯誤！');
+                window.location.href = 'index.html';
+                return;
+            }
         }
-        const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
-        if (result && result.success) {
-            sessionStorage.setItem('accessVerified', 'true');
-        } else {
-            alert('存取碼錯誤！');
-            window.location.href = 'index.html';
-            return;
+        
+        document.getElementById('settings-content').classList.remove('hidden');
+
+        const result = await apiRequest('GET', { action: 'getItems' });
+        if (result && result.data) {
+            allItems = result.data;
+            setupSettingsTabs();
+            // Initial render for the default active tab
+            renderItemsForCategory('央廚');
         }
-    }
-    
-    document.getElementById('settings-content').classList.remove('hidden');
 
-    const result = await apiRequest('GET', { action: 'getItems' });
-    if (result && result.data) {
-        allItems = result.data;
-        setupSettingsTabs();
-        renderItemsForCategory('央廚');
+        document.getElementById('save-settings-btn').addEventListener('click', saveAllSettings);
+        document.getElementById('add-item-btn').addEventListener('click', () => openItemModal());
+        document.querySelector('.modal .close-btn').addEventListener('click', closeItemModal);
+        document.getElementById('item-form').addEventListener('submit', handleFormSubmit);
+    } finally {
+        hideLoader();
     }
-
-    document.getElementById('save-settings-btn').addEventListener('click', saveAllSettings);
-    document.getElementById('add-item-btn').addEventListener('click', () => openItemModal());
-    document.querySelector('.modal .close-btn').addEventListener('click', closeItemModal);
-    document.getElementById('item-form').addEventListener('submit', handleFormSubmit);
 }
 
 function setupSettingsTabs() {
     const tabs = document.querySelectorAll('.tabs .tab-link');
+    const tabContents = document.querySelectorAll('.tab-content');
+
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            tab.classList.add('active');
+            // Hide all content panes
+            tabContents.forEach(content => content.classList.add('hidden'));
+
+            // Show the target content pane
+            const targetId = tab.dataset.tab;
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+                targetContent.classList.remove('hidden');
+            }
+
+            // Determine category and render items
             const category = tab.dataset.tab === 'tab-ck' ? '央廚' : tab.dataset.tab === 'tab-sf' ? '海鮮廠商' : '菜商';
-            document.getElementById(tab.dataset.tab).classList.add('active');
             renderItemsForCategory(category);
         });
     });
 }
 
+
 function renderItemsForCategory(category) {
     currentCategory = category;
     const containerId = category === '央廚' ? 'tab-ck' : category === '海鮮廠商' ? 'tab-sf' : 'tab-vg';
     const container = document.getElementById(containerId);
-    container.innerHTML = '';
-    
+    container.innerHTML = ''; // Clear previous content
+
     const categoryItems = allItems.filter(item => item.Category === category);
 
     if (categoryItems.length === 0) {
-        container.innerHTML = '<p>此分類下尚無品項。</p>';
+        container.innerHTML = `<p class="text-slate-500 text-center py-4">此分類下尚無品項。</p>`;
     } else {
         categoryItems.forEach(item => {
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'item-row';
-            itemDiv.innerHTML = `
-                <span>${item.ItemName}</span>
-                <div>
-                    <button class="btn-secondary" onclick="openItemModal('${item.ItemID}')">編輯</button>
-                    <button class="btn-danger" onclick="deleteItem('${item.ItemID}')">刪除</button>
-                </div>
-            `;
+            itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg shadow-sm';
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'flex flex-col';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'font-semibold text-slate-800';
+            nameSpan.textContent = item.ItemName;
+            infoDiv.appendChild(nameSpan);
+            
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.className = 'flex space-x-3';
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'text-sm text-slate-600 hover:text-blue-600 font-medium transition';
+            editButton.textContent = '編輯';
+            editButton.addEventListener('click', () => openItemModal(item.ItemID));
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'text-sm text-slate-600 hover:text-red-600 font-medium transition';
+            deleteButton.textContent = '刪除';
+            deleteButton.addEventListener('click', () => deleteItem(item.ItemID));
+
+            buttonsDiv.appendChild(editButton);
+            buttonsDiv.appendChild(deleteButton);
+            
+            infoDiv.appendChild(buttonsDiv);
+            
+            itemDiv.appendChild(infoDiv);
             container.appendChild(itemDiv);
         });
     }
 }
+
 
 function openItemModal(itemId = null) {
     const modal = document.getElementById('item-modal');
@@ -175,11 +211,11 @@ function openItemModal(itemId = null) {
         document.getElementById('modal-title').innerText = '新增品項';
         document.getElementById('modal-item-id').value = `ITEM_${Date.now()}`;
     }
-    modal.style.display = 'block';
+    modal.classList.remove('hidden');
 }
 
 function closeItemModal() {
-    document.getElementById('item-modal').style.display = 'none';
+    document.getElementById('item-modal').classList.add('hidden');
 }
 
 function handleFormSubmit(event) {
@@ -218,7 +254,7 @@ function handleFormSubmit(event) {
 }
 
 function deleteItem(itemId) {
-    if (confirm('確定要刪除這個品項嗎？')) {
+    if (confirm('確定要刪除這個品項嗎？此變更將在按下「儲存所有變更」後生效。')) {
         allItems = allItems.filter(i => i.ItemID !== itemId);
         renderItemsForCategory(currentCategory);
     }
@@ -256,23 +292,28 @@ async function saveAllSettings() {
 // INVENTORY PAGE LOGIC (`inventory.html`)
 // =================================================================
 async function initInventoryPage() {
-    const itemsResult = await apiRequest('GET', { action: 'getItems' });
-    if (itemsResult) allItems = itemsResult.data;
+    showLoader();
+    try {
+        const itemsResult = await apiRequest('GET', { action: 'getItems' });
+        if (itemsResult) allItems = itemsResult.data;
 
-    const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
-    if (logsResult) {
-        inventoryLogs = logsResult.data;
-        populateHistoryDropdown(inventoryLogs, 'history-select');
+        const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
+        if (logsResult) {
+            inventoryLogs = logsResult.data;
+            populateHistoryDropdown(inventoryLogs, 'history-select');
+        }
+
+        document.querySelector('#history-select').addEventListener('change', (e) => {
+            loadHistoricalInventory(e.target.value);
+        });
+        
+        setupInventoryTabs();
+        renderInventoryList('央廚');
+
+        document.getElementById('save-inventory-btn').addEventListener('click', saveInventory);
+    } finally {
+        hideLoader();
     }
-
-    document.querySelector('#history-select').addEventListener('change', (e) => {
-        loadHistoricalInventory(e.target.value);
-    });
-    
-    setupInventoryTabs();
-    renderInventoryList('央廚');
-
-    document.getElementById('save-inventory-btn').addEventListener('click', saveInventory);
 }
 
 function setupInventoryTabs() {
@@ -294,14 +335,14 @@ function renderInventoryList(category) {
 
     categoryItems.forEach(item => {
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'inventory-item';
+        itemDiv.className = 'grid grid-cols-3 gap-4 items-center p-3 bg-white/60 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
         itemDiv.innerHTML = `
-            <div class="item-info">
-                <span class="item-name">${item.ItemName} ${item.IsRequired ? '*' : ''}</span>
-                <p class="item-desc">${item.Description || ''}</p>
+            <div class="col-span-2">
+                <span class="font-semibold text-slate-800">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
+                <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" class="inventory-quantity" placeholder="數量">
+            <input type="number" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
@@ -321,13 +362,20 @@ function populateHistoryDropdown(logs, selectId) {
 
 function loadHistoricalInventory(logId) {
     if (!logId) return;
+    showLoader();
     const log = inventoryLogs.find(l => l.logId == logId);
-    if (!log) return;
+    if (!log) {
+        hideLoader();
+        return;
+    }
 
     // Switch tab to match log category
     document.querySelectorAll('.tabs .tab-link').forEach(tab => {
         if(tab.dataset.category === log.category) {
-           tab.click();
+           // Manually trigger click and style update
+           document.querySelectorAll('.tabs .tab-link').forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
+           tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+           renderInventoryList(log.category);
         }
     });
 
@@ -338,6 +386,7 @@ function loadHistoricalInventory(logId) {
                 itemRow.querySelector('.inventory-quantity').value = item.quantity;
             }
         });
+        hideLoader();
     }, 100); // Small delay to ensure tab content is rendered
 }
 
@@ -354,9 +403,9 @@ async function saveInventory() {
 
         if (itemInfo.IsRequired && (quantity === '' || quantity === null)) {
             validationFailed = true;
-            quantityInput.style.border = '2px solid red';
+            quantityInput.classList.add('border-red-500', 'ring', 'ring-red-200');
         } else {
-             quantityInput.style.border = '';
+             quantityInput.classList.remove('border-red-500', 'ring', 'ring-red-200');
         }
 
         if (quantity !== '' && quantity !== null) {
@@ -398,53 +447,52 @@ async function saveInventory() {
 // ORDER PAGE LOGIC (`order.html`)
 // =================================================================
 async function initOrderPage() {
-    const itemsResult = await apiRequest('GET', { action: 'getItems' });
-    if (itemsResult) allItems = itemsResult.data;
+    showLoader();
+    try {
+        const itemsResult = await apiRequest('GET', { action: 'getItems' });
+        if (itemsResult) allItems = itemsResult.data;
 
-    const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
-    if (logsResult) {
-        inventoryLogs = logsResult.data;
-        populateHistoryDropdown(inventoryLogs, 'order-history-select');
-        checkTodayLog();
-    }
-    
-    setupOrderTabs();
-
-    document.getElementById('order-history-select').addEventListener('change', (e) => {
-        generateOrderList(e.target.value);
-    });
-
-    // Check for logId from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const logId = urlParams.get('logId');
-    if (logId) {
-        const log = (await apiRequest('GET', {action: 'getLogById', logId: logId})).data;
-        if(log){
-            // Switch tab
-            const targetTab = document.querySelector(`.tab-link[data-category="${log.category}"]`);
-            if (targetTab) {
-                targetTab.click();
-            }
-            // Set dropdown and generate list
-            document.getElementById('order-history-select').value = logId;
-            generateOrderList(logId);
+        const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
+        if (logsResult) {
+            inventoryLogs = logsResult.data;
+            populateHistoryDropdown(inventoryLogs, 'order-history-select');
+            checkTodayLog();
         }
-    } else {
-       // Default view
-       handleOrderTabClick('央廚');
+        
+        setupOrderTabs();
+
+        document.getElementById('order-history-select').addEventListener('change', (e) => {
+            generateOrderList(e.target.value);
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const logId = urlParams.get('logId');
+        if (logId) {
+            const logResult = await apiRequest('GET', {action: 'getLogById', logId: logId});
+            if(logResult && logResult.data){
+                const log = logResult.data;
+                const targetTab = document.querySelector(`.tab-link[data-category="${log.category}"]`);
+                if (targetTab) {
+                    targetTab.click();
+                }
+                document.getElementById('order-history-select').value = logId;
+                await generateOrderList(logId);
+            }
+        } else {
+           handleOrderTabClick('央廚');
+        }
+
+        document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
+        document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
+        document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
+    } finally {
+        hideLoader();
     }
-
-    document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
-    document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
-    document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
-
 }
 
 function setupOrderTabs() {
     document.querySelectorAll('.tabs .tab-link').forEach(tab => {
         tab.addEventListener('click', () => {
-            document.querySelectorAll('.tabs .tab-link').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
             handleOrderTabClick(tab.dataset.category);
         });
     });
@@ -452,17 +500,21 @@ function setupOrderTabs() {
 
 function handleOrderTabClick(category) {
     currentCategory = category;
-    document.getElementById('order-preview').innerHTML = `<h3 id="order-title">叫貨單</h3><div id="order-list"></div>`;
+    document.getElementById('order-preview').classList.add('hidden');
     document.getElementById('action-buttons').classList.add('hidden');
 
     if (category === '央廚' || category === '海鮮廠商') {
         document.getElementById('auto-order-section').classList.remove('hidden');
         document.getElementById('manual-order-section').classList.add('hidden');
-        // Auto-select latest log for this category
+        
         const latestLog = inventoryLogs.find(log => log.category === category);
         if(latestLog) {
             document.getElementById('order-history-select').value = latestLog.logId;
             generateOrderList(latestLog.logId);
+        } else {
+            document.getElementById('order-history-select').value = '';
+            document.getElementById('order-list').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
+            document.getElementById('order-preview').classList.remove('hidden');
         }
     } else { // 菜商
         document.getElementById('auto-order-section').classList.add('hidden');
@@ -474,13 +526,17 @@ function handleOrderTabClick(category) {
 function checkTodayLog() {
     const todayStr = new Date().toISOString().slice(0, 10);
     const hasTodayLog = inventoryLogs.some(log => log.timestamp.startsWith(todayStr));
+    const warningEl = document.getElementById('no-today-log-warning');
     if (!hasTodayLog) {
-        document.getElementById('no-today-log-warning').classList.remove('hidden');
+        warningEl.classList.remove('hidden');
+    } else {
+        warningEl.classList.add('hidden');
     }
 }
 
 async function generateOrderList(logId) {
     if (!logId) return;
+    
     const log = inventoryLogs.find(l => l.logId == logId);
     if (!log) return;
     
@@ -490,9 +546,9 @@ async function generateOrderList(logId) {
 
     log.items.forEach(logItem => {
         const itemInfo = allItems.find(i => i.ItemID === logItem.itemId);
-        if (!itemInfo) return;
+        if (!itemInfo || !itemInfo.MinStock_Normal) return;
 
-        const minStock = itemInfo.MinStock_Normal; // Simplified: can add holiday logic later
+        const minStock = itemInfo.MinStock_Normal;
         const packageFactor = itemInfo.PackageFactor || 1;
         
         let orderQuantity = Math.ceil((minStock - logItem.quantity) / packageFactor);
@@ -503,29 +559,30 @@ async function generateOrderList(logId) {
     });
 
     document.getElementById('order-list').innerText = orderText || '所有品項庫存充足，無需叫貨。';
+    document.getElementById('order-preview').classList.remove('hidden');
     document.getElementById('action-buttons').classList.remove('hidden');
 }
 
 function renderManualOrderForm() {
     const container = document.getElementById('manual-order-section');
-    container.innerHTML = '';
+    container.innerHTML = ''; // Clear previous form
     const vegItems = allItems.filter(i => i.Category === '菜商');
 
     vegItems.forEach(item => {
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'order-item-manual';
+        itemDiv.className = 'grid grid-cols-3 gap-4 items-center p-3 bg-white/60 rounded-lg';
         itemDiv.innerHTML = `
-            <div class="item-info">
-                <span class="item-name">${item.ItemName}</span>
-                <p class="item-desc">${item.Description || ''}</p>
+            <div class="col-span-2">
+                <span class="font-semibold text-slate-800">${item.ItemName}</span>
+                <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" class="order-quantity" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
+            <input type="number" class="order-quantity text-right p-2 border border-slate-300 rounded-md" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
     
     const generateBtn = document.createElement('button');
-    generateBtn.className = 'btn-primary';
+    generateBtn.className = 'w-full flex items-center justify-center gap-2 py-3 px-4 mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md';
     generateBtn.textContent = '產生叫貨單';
     generateBtn.onclick = generateManualOrder;
     container.appendChild(generateBtn);
@@ -536,7 +593,7 @@ function generateManualOrder() {
     const title = `菜商叫貨單 - ${new Date().toLocaleString('sv-SE').slice(0, 16)}`;
     document.getElementById('order-title').textContent = title;
     
-    document.querySelectorAll('.order-quantity').forEach(input => {
+    document.querySelectorAll('#manual-order-section .order-quantity').forEach(input => {
         const quantity = input.value;
         if (quantity && parseFloat(quantity) > 0) {
             orderText += `${input.dataset.itemName}：${quantity} ${input.dataset.unit}\n`;
@@ -544,9 +601,9 @@ function generateManualOrder() {
     });
 
     document.getElementById('order-list').innerText = orderText || '尚未輸入任何叫貨數量。';
+    document.getElementById('order-preview').classList.remove('hidden');
     document.getElementById('action-buttons').classList.remove('hidden');
 }
-
 
 function getFullOrderText() {
     const title = document.getElementById('order-title').textContent;
@@ -571,71 +628,38 @@ function shareToLineText() {
 }
 
 async function shareToLineImage() {
+    showLoader();
     const orderPreview = document.getElementById('order-preview');
     const title = document.getElementById('order-title').textContent || '叫貨單';
 
-    // 檢查是否支援 Web Share API 且是否能分享檔案
-    if (navigator.share && navigator.canShare) {
-        // --- 使用 Web Share API 的新式分享流程 ---
-        try {
-            alert("正在產生圖片，請稍候...");
-            const canvas = await html2canvas(orderPreview);
-            
-            // 將 canvas 轉換成 Blob 物件
+    try {
+        const canvas = await html2canvas(orderPreview, { scale: 2 });
+        if (navigator.share && navigator.canShare) {
             canvas.toBlob(async (blob) => {
-                // 將 Blob 包裝成 File 物件
                 const file = new File([blob], '叫貨單.png', { type: blob.type });
-
-                // 準備要分享的資料
-                const shareData = {
-                    files: [file],
-                    title: title,
-                    text: `你好，這是今天的${title}。`,
-                };
-
-                // 檢查瀏覽器是否能分享我們準備的資料
+                const shareData = { files: [file], title: title, text: `你好，這是今天的${title}。` };
                 if (navigator.canShare(shareData)) {
-                    // 呼叫原生分享功能
                     await navigator.share(shareData);
-                    console.log('圖片分享成功！');
                 } else {
-                    console.warn('無法分享此類型的檔案。');
-                    // 若因某些原因無法分享檔案，則退回舊方法
                     fallbackShare(canvas);
                 }
             }, 'image/png');
-
-        } catch (error) {
-            // 使用者可能手動取消分享，或發生其他錯誤
-            if (error.name !== 'AbortError') {
-                 console.error('分享失敗:', error);
-                 alert(`分享失敗: ${error.message}`);
-            }
+        } else {
+            fallbackShare(canvas);
         }
-
-    } else {
-        // --- 不支援 Web Share API 時的舊方法 ---
-        alert("您的瀏覽器不支援直接分享，將為您產生圖片供手動下載。");
-        const canvas = await html2canvas(orderPreview);
-        fallbackShare(canvas);
+    } catch (error) {
+        console.error('分享失敗:', error);
+        alert(`產生圖片失敗: ${error.message}`);
+    } finally {
+        hideLoader();
     }
 }
 
-// 舊的、用於手動下載的分享方式 (Fallback)
 function fallbackShare(canvas) {
     const image = canvas.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = image;
     link.download = '叫貨單.png';
-    
-    // 在新分頁中顯示圖片和下載按鈕，引導使用者手動操作
-    const newWindow = window.open();
-    newWindow.document.write('<h3>長按圖片或點擊下載按鈕，即可儲存並分享至LINE</h3>');
-    newWindow.document.write(`<img src="${image}" width="100%" style="border: 1px solid #ccc;">`);
-    newWindow.document.write('<br>');
-    const downloadBtn = newWindow.document.createElement('a');
-    downloadBtn.href = image;
-    downloadBtn.download = '叫貨單.png';
-    downloadBtn.innerHTML = '<button style="padding:20px; font-size: 22px; width:100%; box-sizing: border-box;">點我下載圖片</button>';
-    newWindow.document.body.appendChild(downloadBtn);
+    link.click();
+    alert("您的瀏覽器不支援直接分享。圖片已為您下載，請手動分享至 LINE。");
 }
