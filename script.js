@@ -14,6 +14,11 @@ const loader = document.getElementById('loader');
 const showLoader = () => loader && (loader.style.display = 'block');
 const hideLoader = () => loader && (loader.style.display = 'none');
 
+/**
+ * --- API Request Function (OPTIMIZED) ---
+ * This function is updated to ensure the loader is hidden BEFORE any alert message is shown.
+ * This provides a better user experience across all pages.
+ */
 async function apiRequest(method, payload) {
     showLoader();
     try {
@@ -32,18 +37,22 @@ async function apiRequest(method, payload) {
         }
 
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) throw new Error('網路回應錯誤，請檢查您的網路連線。');
+        
         const result = await response.json();
-        if (!result.success) throw new Error(result.message || 'API request failed');
+        if (!result.success) throw new Error(result.message || 'API 請求失敗，請稍後再試。');
+        
+        // On success, return data and the calling function will handle hiding the loader.
         return result;
     } catch (error) {
-        alert(`發生錯誤: ${error.message}`);
         console.error('API Error:', error);
-        return null;
-    } finally {
+        // On error, hide the loader FIRST, then show the alert.
         hideLoader();
+        alert(`發生錯誤: ${error.message}`);
+        return null;
     }
 }
+
 
 // --- Page Initializers ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -78,8 +87,8 @@ async function initSettingsPage() {
             if (result && result.success) {
                 sessionStorage.setItem('accessVerified', 'true');
             } else {
-                alert('存取碼錯誤！');
-                window.location.href = 'index.html';
+                // apiRequest will show an alert, so we just redirect.
+                if(!alert) window.location.href = 'index.html';
                 return;
             }
         }
@@ -286,6 +295,7 @@ async function saveAllSettings() {
         document.getElementById('old-access-code').value = '';
         document.getElementById('new-access-code').value = '';
     }
+    hideLoader();
 }
 
 // =================================================================
@@ -350,6 +360,7 @@ function renderInventoryList(category) {
 
 function populateHistoryDropdown(logs, selectId) {
     const select = document.getElementById(selectId);
+    if (!select) return;
     select.innerHTML = '<option value="">請選擇...</option>';
     logs.forEach(log => {
         const option = document.createElement('option');
@@ -381,7 +392,7 @@ function loadHistoricalInventory(logId) {
 
     setTimeout(() => {
         log.items.forEach(item => {
-            const itemRow = document.querySelector(`.inventory-item[data-item-id="${item.itemId}"]`);
+            const itemRow = document.querySelector(`div[data-item-id="${item.itemId}"]`);
             if (itemRow) {
                 itemRow.querySelector('.inventory-quantity').value = item.quantity;
             }
@@ -394,7 +405,7 @@ async function saveInventory() {
     const itemsToSave = [];
     let validationFailed = false;
     
-    const itemElements = document.querySelectorAll('#inventory-list .inventory-item');
+    const itemElements = document.querySelectorAll('#inventory-list div[data-item-id]');
     itemElements.forEach(el => {
         const itemId = el.dataset.itemId;
         const itemInfo = allItems.find(i => i.ItemID === itemId);
@@ -437,6 +448,7 @@ async function saveInventory() {
 
     const result = await apiRequest('POST', payload);
     if (result && result.success) {
+        hideLoader();
         alert('盤點儲存成功！');
         window.location.href = `order.html?logId=${result.logId}`;
     }
@@ -535,7 +547,10 @@ function checkTodayLog() {
 }
 
 async function generateOrderList(logId) {
-    if (!logId) return;
+    if (!logId) {
+        document.getElementById('order-preview').classList.add('hidden');
+        return;
+    };
     
     const log = inventoryLogs.find(l => l.logId == logId);
     if (!log) return;
