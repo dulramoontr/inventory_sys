@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>盤點叫貨輔助系統</title>
+    <title>Inventory System</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -27,15 +27,33 @@
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
+        
+        /* --- CORRECTED LOADER STYLES --- */
         .loader {
+            position: fixed;
+            inset: 0; /* top, bottom, left, right = 0 */
+            z-index: 9999;
+            background-color: rgba(100, 116, 139, 0.3); /* semi-transparent background */
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .loader::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            border: 5px solid rgba(255,255,255,0.3);
-            border-top-color: #3b82f6;
+            border: 5px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #ffffff;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -84,10 +102,10 @@
         </main>
         
         <footer class="text-center mt-12">
-            <p class="text-slate-500">Ver 4.0 - Tailwind</p>
+            <p class="text-slate-500">Ver 4.1 - Loader Fix</p>
         </footer>
-        
     </div>
-    <div id="loader" class="loader hidden fixed inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm"></div>
+    <div id="loader" class="loader hidden"></div>
+    <script src="script.js"></script>
 </body>
 </html>

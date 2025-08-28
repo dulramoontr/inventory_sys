@@ -14,8 +14,32 @@
     <style>
         body { font-family: 'Noto Sans TC', sans-serif; background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
         .glass-card { background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.7); }
-        .loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; border-radius: 50%; border: 5px solid rgba(255,255,255,0.3); border-top-color: #3b82f6; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* --- CORRECTED LOADER STYLES --- */
+        .loader {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background-color: rgba(100, 116, 139, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .loader::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 5px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #ffffff;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -52,10 +76,9 @@
         </main>
         
     </div>
-    <div id="loader" class="loader hidden fixed inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm"></div>
+    <div id="loader" class="loader hidden"></div>
     <script src="script.js"></script>
     <script>
-        // Minor tweak to support new tab styles
         document.addEventListener('DOMContentLoaded', () => {
              const tabs = document.querySelectorAll('.tabs .tab-link');
              tabs.forEach(tab => {
@@ -64,7 +87,6 @@
                     tab.classList.add('bg-white', 'shadow', 'text-blue-600', 'font-semibold');
                 });
              });
-             // Set initial active tab style
              document.querySelector('.tab-link.active').classList.add('bg-white', 'shadow', 'text-blue-600', 'font-semibold');
         });
     </script>
