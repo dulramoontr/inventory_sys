@@ -81,6 +81,9 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'order.html':
             initOrderPage();
             break;
+        case 'veg-order.html': // New page initializer
+            initVegOrderPage();
+            break;
     }
 });
 
@@ -115,6 +118,7 @@ async function initSettingsPage() {
             allItems = result.data;
             setupSettingsTabs();
             renderItemsForCategory('央廚');
+            // Initialize sortable functionality for all tabs
             ['tab-ck', 'tab-sf', 'tab-vg'].forEach(id => {
                  const el = document.getElementById(id);
                  new Sortable(el, {
@@ -157,6 +161,7 @@ function renderItemsForCategory(category) {
     container.innerHTML = ''; 
 
     const categoryItems = allItems.filter(item => item.Category === category);
+    // Sort items by SortOrder property
     categoryItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
 
     if (categoryItems.length === 0) {
@@ -192,7 +197,6 @@ function renderItemsForCategory(category) {
     }
 }
 
-// *** MODIFIED: To handle separate unit fields ***
 function openItemModal(itemId = null) {
     const modal = document.getElementById('item-modal');
     const form = document.getElementById('item-form');
@@ -237,7 +241,6 @@ function closeItemModal() {
     document.getElementById('item-modal').classList.add('hidden');
 }
 
-// *** MODIFIED: To save separate unit fields ***
 function handleFormSubmit(event) {
     event.preventDefault();
     const itemId = document.getElementById('modal-item-id').value;
@@ -270,9 +273,11 @@ function handleFormSubmit(event) {
     }
 
     if (existingItemIndex > -1) {
+        // Preserve SortOrder when editing
         newItem.SortOrder = allItems[existingItemIndex].SortOrder;
         allItems[existingItemIndex] = newItem;
     } else {
+        // Assign a new SortOrder for new items
         const categoryItems = allItems.filter(i => i.Category === currentCategory);
         newItem.SortOrder = categoryItems.length > 0 ? Math.max(...categoryItems.map(i => i.SortOrder || 0)) + 1 : 1;
         allItems.push(newItem);
@@ -374,7 +379,6 @@ function setupInventoryTabs() {
     });
 }
 
-// *** MODIFIED: To display inventory unit ***
 function renderInventoryList(category) {
     currentCategory = category;
     const container = document.getElementById('inventory-list');
@@ -494,7 +498,7 @@ async function saveInventory() {
 }
 
 // =================================================================
-// ORDER PAGE LOGIC (`order.html`)
+// ORDER PAGE LOGIC (`order.html` - CK/Seafood)
 // =================================================================
 async function initOrderPage() {
     showLoader();
@@ -554,25 +558,18 @@ function handleOrderTabClick(category) {
     document.getElementById('order-preview').classList.add('hidden');
     document.getElementById('action-buttons').classList.add('hidden');
 
-    if (category === '央廚' || category === '海鮮廠商') {
-        document.getElementById('auto-order-section').classList.remove('hidden');
-        document.getElementById('manual-order-section').classList.add('hidden');
-        
-        const latestLog = inventoryLogs.find(log => log.category === category);
-        if(latestLog) {
-            document.getElementById('order-history-select').value = latestLog.logId;
-            generateOrderList(latestLog.logId);
-        } else {
-            document.getElementById('order-history-select').value = '';
-            document.getElementById('order-subtitle').textContent = `${category}叫貨單`;
-            document.getElementById('order-date').textContent = '';
-            document.getElementById('order-list-container').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
-            document.getElementById('order-preview').classList.remove('hidden');
-        }
-    } else { // 菜商
-        document.getElementById('auto-order-section').classList.add('hidden');
-        document.getElementById('manual-order-section').classList.remove('hidden');
-        renderManualOrderForm();
+    document.getElementById('auto-order-section').classList.remove('hidden');
+    
+    const latestLog = inventoryLogs.find(log => log.category === category);
+    if(latestLog) {
+        document.getElementById('order-history-select').value = latestLog.logId;
+        generateOrderList(latestLog.logId);
+    } else {
+        document.getElementById('order-history-select').value = '';
+        document.getElementById('order-subtitle').textContent = `${category}叫貨單`;
+        document.getElementById('order-date').textContent = '';
+        document.getElementById('order-list-container').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
+        document.getElementById('order-preview').classList.remove('hidden');
     }
 }
 
@@ -584,7 +581,6 @@ function checkTodayLog() {
     else warningEl.classList.add('hidden');
 }
 
-// *** MODIFIED: To use order unit ***
 async function generateOrderList(logId) {
     if (!logId) {
         document.getElementById('order-preview').classList.add('hidden');
@@ -647,7 +643,30 @@ async function generateOrderList(logId) {
     document.getElementById('action-buttons').classList.remove('hidden');
 }
 
-// *** MODIFIED: To display order unit ***
+// =================================================================
+// VEGETABLE ORDER PAGE LOGIC (`veg-order.html`)
+// =================================================================
+async function initVegOrderPage() {
+    showLoader();
+    try {
+        const itemsResult = await apiRequest('GET', { action: 'getItems' });
+        if (itemsResult) {
+             allItems = itemsResult.data;
+             allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+        }
+
+        currentCategory = '菜商';
+        renderManualOrderForm();
+
+        document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
+        document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
+        document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
+
+    } finally {
+        hideLoader();
+    }
+}
+
 function renderManualOrderForm() {
     const container = document.getElementById('manual-order-section');
     container.innerHTML = '';
@@ -734,6 +753,10 @@ function generateManualOrder() {
     document.getElementById('action-buttons').classList.remove('hidden');
 }
 
+
+// =================================================================
+// SHARED FUNCTIONS (used by order.html and veg-order.html)
+// =================================================================
 function getFullOrderText() {
     const mainTitle = document.getElementById('order-main-title').textContent;
     const subtitle = document.getElementById('order-subtitle').textContent;
