@@ -4,68 +4,116 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>參數設定 - 庫存系統</title>
-    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
+        .glass-card { background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.7); }
+        .loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; border-radius: 50%; border: 5px solid rgba(255,255,255,0.3); border-top-color: #3b82f6; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+        .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1><a href="index.html">⇦</a> 參數設定</h1>
+<body class="min-h-screen">
+    <div class="container mx-auto max-w-3xl p-4 sm:p-6">
+
+        <header class="flex items-center justify-center relative my-8">
+            <a href="index.html" class="absolute left-0 text-slate-600 hover:text-blue-500 transition">
+                <span class="material-symbols-outlined text-3xl">arrow_circle_left</span>
+            </a>
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-700 tracking-wider">參數設定</h1>
         </header>
-        <main id="settings-content" class="hidden">
-            <div class="settings-section">
-                <h3>存取碼修改</h3>
-                <input type="password" id="old-access-code" placeholder="舊存取碼">
-                <input type="password" id="new-access-code" placeholder="新存取碼">
-            </div>
 
-            <div class="tabs">
-                <button class="tab-link active" data-tab="tab-ck">央廚庫存</button>
-                <button class="tab-link" data-tab="tab-sf">海鮮廠商</button>
-                <button class="tab-link" data-tab="tab-vg">菜商叫貨</button>
-            </div>
-
-            <div id="tab-ck" class="tab-content active"></div>
-            <div id="tab-sf" class="tab-content"></div>
-            <div id="tab-vg" class="tab-content"></div>
+        <main id="settings-content" class="hidden p-6 rounded-2xl shadow-lg glass-card space-y-6">
             
-            <button id="add-item-btn" class="btn-primary">新增品項</button>
-            <button id="save-settings-btn" class="btn-primary">儲存所有變更</button>
-        </main>
-        <div id="loader" class="loader"></div>
-    </div>
+            <div class="settings-section">
+                <h3 class="text-lg font-bold text-slate-700 mb-2">存取碼修改</h3>
+                <div class="space-y-3">
+                    <input type="password" id="old-access-code" placeholder="舊存取碼" class="w-full p-3 bg-white/80 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                    <input type="password" id="new-access-code" placeholder="新存取碼" class="w-full p-3 bg-white/80 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+            </div>
 
-    <div id="item-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <h3 id="modal-title">新增品項</h3>
-            <form id="item-form">
+            <div class="tabs flex space-x-2 p-1 bg-blue-100 rounded-full">
+                <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300 active" data-tab="tab-ck">央廚庫存</button>
+                <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-sf">海鮮廠商</button>
+                <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-vg">菜商叫貨</button>
+            </div>
+
+            <div id="tab-ck" class="tab-content active min-h-[100px]"></div>
+            <div id="tab-sf" class="tab-content min-h-[100px]"></div>
+            <div id="tab-vg" class="tab-content min-h-[100px]"></div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                 <button id="add-item-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/80 text-blue-600 font-bold rounded-lg shadow-md hover:bg-white transition-all">
+                    <span class="material-symbols-outlined">add</span>新增品項
+                </button>
+                <button id="save-settings-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all">
+                    <span class="material-symbols-outlined">save</span>儲存所有變更
+                </button>
+            </div>
+        </main>
+        
+    </div>
+    <div id="loader" class="loader hidden"></div>
+
+    <div id="item-modal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-content relative w-full max-w-lg bg-slate-50 rounded-2xl shadow-xl p-6">
+            <span class="close-btn absolute top-4 right-4 text-slate-500 hover:text-slate-800 cursor-pointer">&times;</span>
+            <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-4">新增品項</h3>
+            <form id="item-form" class="space-y-4">
                 <input type="hidden" id="modal-item-id">
-                <label>品項名稱:</label><input type="text" id="modal-item-name" required>
-                <label>品項說明文字 (選填):</label><input type="text" id="modal-item-desc">
-                <label>單位:</label><input type="text" id="modal-item-unit" required>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">品項名稱:</label>
+                    <input type="text" id="modal-item-name" required class="w-full p-2 bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">品項說明文字 (選填):</label>
+                    <input type="text" id="modal-item-desc" class="w-full p-2 bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">單位:</label>
+                    <input type="text" id="modal-item-unit" required class="w-full p-2 bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
                 
-                <div class="modal-fields-common">
-                    <label>一般最低庫存:</label><input type="number" id="modal-min-stock" value="0">
-                    <label>長假最低庫存:</label><input type="number" id="modal-min-stock-holiday" value="0">
-                    <label>包裝方式:</label><input type="number" id="modal-package-factor" value="1">
-                    <label><input type="checkbox" id="modal-is-required"> 是否為必填</label>
+                <div class="modal-fields-common space-y-4">
+                     <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium text-slate-600 mb-1">一般最低庫存:</label><input type="number" id="modal-min-stock" value="0" class="w-full p-2 bg-white border border-slate-300 rounded-md"></div>
+                        <div><label class="block text-sm font-medium text-slate-600 mb-1">長假最低庫存:</label><input type="number" id="modal-min-stock-holiday" value="0" class="w-full p-2 bg-white border border-slate-300 rounded-md"></div>
+                     </div>
+                    <div><label class="block text-sm font-medium text-slate-600 mb-1">包裝方式:</label><input type="number" id="modal-package-factor" value="1" class="w-full p-2 bg-white border border-slate-300 rounded-md"></div>
+                    <label class="flex items-center space-x-2"><input type="checkbox" id="modal-is-required" class="rounded"><span>是否為必填</span></label>
                 </div>
                 
                 <div class="modal-fields-veg">
-                     <label>品項類別:</label>
-                     <select id="modal-subcategory">
-                        <option value="-">無</option>
-                        <option value="蔬菜">蔬菜</option>
-                        <option value="火鍋料">火鍋料</option>
-                        <option value="其他">其他</option>
+                     <label class="block text-sm font-medium text-slate-600 mb-1">品項類別:</label>
+                     <select id="modal-subcategory" class="w-full p-2 bg-white border border-slate-300 rounded-md">
+                        <option value="-">無</option><option value="蔬菜">蔬菜</option><option value="火鍋料">火鍋料</option><option value="其他">其他</option>
                      </select>
                 </div>
 
-                <button type="submit" class="btn-primary">儲存</button>
+                <button type="submit" class="w-full py-3 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition">儲存</button>
             </form>
         </div>
     </div>
-
     <script src="script.js"></script>
+     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.tabs .tab-link');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
+                    tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+                });
+            });
+            document.querySelector('.tab-link.active').classList.add('bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+        });
+    </script>
 </body>
 </html>
