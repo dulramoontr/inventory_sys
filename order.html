@@ -16,7 +16,6 @@
         body { font-family: 'Noto Sans TC', sans-serif; background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
         .glass-card { background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.7); }
         
-        /* --- CORRECTED LOADER STYLES --- */
         .loader {
             position: fixed;
             inset: 0;
@@ -68,9 +67,15 @@
             </div>
             <div id="manual-order-section" class="hidden space-y-3"></div>
 
-            <div id="order-preview" class="p-6 bg-white/80 rounded-xl border border-slate-200">
-                <h3 id="order-title" class="text-xl font-bold text-center text-slate-700 mb-4">叫貨單</h3>
-                <div id="order-list" class="p-4 bg-slate-50 rounded-lg whitespace-pre-wrap font-mono text-slate-800 text-sm"></div>
+            <div id="order-preview" class="p-6 bg-white rounded-xl border border-slate-200">
+                <div class="text-center">
+                    <h2 id="order-main-title" class="text-2xl font-bold text-slate-800">八方悅五股工商店</h2>
+                    <h3 id="order-subtitle" class="text-xl text-slate-700 mt-1"></h3>
+                    <p id="order-date" class="text-slate-500 mt-2"></p>
+                </div>
+                <hr class="my-4 border-slate-300">
+                <div id="order-list-container" class="text-base">
+                    </div>
             </div>
 
             <div id="action-buttons" class="hidden space-y-3">

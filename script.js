@@ -7,16 +7,35 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbwZMCD8Sh3Vhx4dc0rpSUNT
 // --- Global State ---
 let allItems = [];
 let inventoryLogs = [];
-let currentCategory = ''; // 用於設定頁面
+let currentCategory = ''; // Used for settings page
 
-// --- Utility Functions (CORRECTED LOADER LOGIC) ---
+// --- Utility Functions ---
 const loader = document.getElementById('loader');
 const showLoader = () => loader && loader.classList.remove('hidden');
 const hideLoader = () => loader && loader.classList.add('hidden');
 
+// *** NEW: Date formatting helpers ***
+function getFormattedDate(timestampStr) {
+    const date = new Date(timestampStr);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const weekday = date.toLocaleDateString('zh-TW', { weekday: 'long' });
+    return `${year}年${month}月${day}日 ${weekday}`;
+}
+
+function getFormattedDateTime(timestampStr) {
+    const date = new Date(timestampStr);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${year}/${month}/${day} ${hours}:${minutes}`;
+}
+
 /**
- * --- API Request Function (OPTIMIZED) ---
- * This function is updated to ensure the loader is hidden BEFORE any alert message is shown.
+ * --- API Request Function ---
  */
 async function apiRequest(method, payload) {
     showLoader();
@@ -49,7 +68,6 @@ async function apiRequest(method, payload) {
         return null;
     }
 }
-
 
 // --- Page Initializers ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -98,6 +116,7 @@ async function initSettingsPage() {
             allItems = result.data;
             setupSettingsTabs();
             renderItemsForCategory('央廚');
+            // Initialize sortable functionality for all tabs
             ['tab-ck', 'tab-sf', 'tab-vg'].forEach(id => {
                  const el = document.getElementById(id);
                  new Sortable(el, {
@@ -137,7 +156,6 @@ function setupSettingsTabs() {
     });
 }
 
-
 function renderItemsForCategory(category) {
     currentCategory = category;
     const containerId = category === '央廚' ? 'tab-ck' : category === '海鮮廠商' ? 'tab-sf' : 'tab-vg';
@@ -145,6 +163,7 @@ function renderItemsForCategory(category) {
     container.innerHTML = ''; 
 
     const categoryItems = allItems.filter(item => item.Category === category);
+    // Sort items by SortOrder property
     categoryItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
 
     if (categoryItems.length === 0) {
@@ -154,6 +173,7 @@ function renderItemsForCategory(category) {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg shadow-sm';
             itemDiv.dataset.itemId = item.ItemID;
+            // Added drag handle icon
             itemDiv.innerHTML = `
                 <div class="flex items-center">
                     <span class="drag-handle material-symbols-outlined">drag_indicator</span>
@@ -182,7 +202,6 @@ function renderItemsForCategory(category) {
         });
     }
 }
-
 
 function openItemModal(itemId = null) {
     const modal = document.getElementById('item-modal');
@@ -257,9 +276,11 @@ function handleFormSubmit(event) {
     }
 
     if (existingItemIndex > -1) {
+        // Preserve SortOrder when editing
         newItem.SortOrder = allItems[existingItemIndex].SortOrder;
         allItems[existingItemIndex] = newItem;
     } else {
+        // Assign a new SortOrder for new items
         const categoryItems = allItems.filter(i => i.Category === currentCategory);
         newItem.SortOrder = categoryItems.length > 0 ? Math.max(...categoryItems.map(i => i.SortOrder || 0)) + 1 : 1;
         allItems.push(newItem);
@@ -276,6 +297,7 @@ function deleteItem(itemId) {
     }
 }
 
+// Function to update SortOrder based on DOM position
 function updateItemsOrderFromDOM() {
     const categories = ['央廚', '海鮮廠商', '菜商'];
     categories.forEach(category => {
@@ -287,13 +309,14 @@ function updateItemsOrderFromDOM() {
             const itemId = el.dataset.itemId;
             const itemInState = allItems.find(i => i.ItemID === itemId);
             if (itemInState) {
-                itemInState.SortOrder = index + 1;
+                itemInState.SortOrder = index + 1; // Use 1-based indexing for order
             }
         });
     });
 }
 
 async function saveAllSettings() {
+    // Update order before saving
     updateItemsOrderFromDOM();
 
     const oldAccessCode = document.getElementById('old-access-code').value;
@@ -376,7 +399,7 @@ function renderInventoryList(category) {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/60 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
-        // *** MODIFIED: Added inputmode="decimal" for better mobile keyboard ***
+        // Added inputmode="decimal" and pre-fill with DefaultStock
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-800">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
@@ -400,9 +423,9 @@ function populateHistoryDropdown(logs, selectId) {
     });
 }
 
-
 function loadHistoricalInventory(logId) {
     if (!logId) {
+        // If no history is selected, render list with default values
         const activeTab = document.querySelector('.tabs .tab-link.active') || document.querySelector('.tabs .tab-link');
         if (activeTab) {
             renderInventoryList(activeTab.dataset.category);
@@ -488,7 +511,6 @@ async function saveInventory() {
     }
 }
 
-
 // =================================================================
 // ORDER PAGE LOGIC (`order.html`)
 // =================================================================
@@ -562,7 +584,9 @@ function handleOrderTabClick(category) {
             generateOrderList(latestLog.logId);
         } else {
             document.getElementById('order-history-select').value = '';
-            document.getElementById('order-list').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
+            document.getElementById('order-subtitle').textContent = `${category}叫貨單`;
+            document.getElementById('order-date').textContent = '';
+            document.getElementById('order-list-container').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
             document.getElementById('order-preview').classList.remove('hidden');
         }
     } else { // 菜商
@@ -593,13 +617,16 @@ async function generateOrderList(logId) {
     const log = inventoryLogs.find(l => l.logId == logId);
     if (!log) return;
     
-    let orderText = '';
-    const title = `${log.category}叫貨單 - ${new Date(log.timestamp).toLocaleString('sv-SE')}`;
-    document.getElementById('order-title').textContent = title;
+    // Set titles and date
+    document.getElementById('order-subtitle').textContent = `${log.category}叫貨單`;
+    document.getElementById('order-date').textContent = `${getFormattedDate(log.timestamp)}`;
+    
+    const container = document.getElementById('order-list-container');
+    container.innerHTML = '';
 
-    const logItemsMap = new Map(log.items.map(item => [item.itemId, item.quantity]));
-
+    const itemsToOrder = [];
     const categoryItems = allItems.filter(item => item.Category === log.category);
+    const logItemsMap = new Map(log.items.map(item => [item.itemId, item.quantity]));
 
     categoryItems.forEach(itemInfo => {
         if (!logItemsMap.has(itemInfo.ItemID) || !itemInfo.MinStock_Normal) return;
@@ -607,15 +634,37 @@ async function generateOrderList(logId) {
         const quantity = logItemsMap.get(itemInfo.ItemID);
         const minStock = itemInfo.MinStock_Normal;
         const packageFactor = itemInfo.PackageFactor || 1;
-        
-        let orderQuantity = Math.ceil((minStock - quantity) / packageFactor);
+        const orderQuantity = Math.ceil((minStock - quantity) / packageFactor);
 
         if (orderQuantity > 0) {
-            orderText += `${itemInfo.ItemName}：${orderQuantity} ${itemInfo.Unit}\n`;
+            itemsToOrder.push({
+                name: itemInfo.ItemName,
+                qty: orderQuantity,
+                unit: itemInfo.Unit
+            });
         }
     });
 
-    document.getElementById('order-list').innerText = orderText || '所有品項庫存充足，無需叫貨。';
+    if (itemsToOrder.length === 0) {
+        container.innerText = '所有品項庫存充足，無需叫貨。';
+    } else {
+        container.innerHTML = `
+            <div class="flex justify-between border-b-2 border-slate-400 pb-2 mb-2 font-bold text-slate-700">
+                <span>品項</span>
+                <span>數量</span>
+            </div>
+        `;
+        itemsToOrder.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'flex justify-between items-center py-2 border-b border-slate-200';
+            row.innerHTML = `
+                <span class="text-slate-800">${item.name}</span>
+                <span class="text-slate-800 text-right">${item.qty}${item.unit}</span>
+            `;
+            container.appendChild(row);
+        });
+    }
+
     document.getElementById('order-preview').classList.remove('hidden');
     document.getElementById('action-buttons').classList.remove('hidden');
 }
@@ -628,13 +677,12 @@ function renderManualOrderForm() {
     vegItems.forEach(item => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg';
-        // *** MODIFIED: Added inputmode="decimal" for better mobile keyboard ***
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-800">${item.ItemName}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
+            <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${item.Unit}" data-subcategory="${item.SubCategory || '其他'}" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
@@ -647,26 +695,83 @@ function renderManualOrderForm() {
 }
 
 function generateManualOrder() {
-    let orderText = '';
-    const title = `菜商叫貨單 - ${new Date().toLocaleString('sv-SE').slice(0, 16)}`;
-    document.getElementById('order-title').textContent = title;
+    document.getElementById('order-subtitle').textContent = '菜商叫貨單';
+    document.getElementById('order-date').textContent = `日期：${getFormattedDateTime(new Date().toISOString())}`;
     
+    const container = document.getElementById('order-list-container');
+    container.innerHTML = '';
+
+    const itemsToOrder = [];
     document.querySelectorAll('#manual-order-section .order-quantity').forEach(input => {
         const quantity = input.value;
         if (quantity && parseFloat(quantity) > 0) {
-            orderText += `${input.dataset.itemName}：${quantity} ${input.dataset.unit}\n`;
+            itemsToOrder.push({
+                name: input.dataset.itemName,
+                qty: quantity,
+                unit: input.dataset.unit,
+                subcategory: input.dataset.subcategory
+            });
         }
     });
 
-    document.getElementById('order-list').innerText = orderText || '尚未輸入任何叫貨數量。';
+    if (itemsToOrder.length === 0) {
+        container.innerText = '尚未輸入任何叫貨數量。';
+    } else {
+        const groupedItems = itemsToOrder.reduce((acc, item) => {
+            const key = item.subcategory;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(item);
+            return acc;
+        }, {});
+
+        let orderText = '';
+        const categoryOrder = ['蔬菜', '火鍋料', '其他'];
+        const sortedKeys = Object.keys(groupedItems).sort((a, b) => {
+            const indexA = categoryOrder.indexOf(a);
+            const indexB = categoryOrder.indexOf(b);
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+        });
+
+        for (const subcategory of sortedKeys) {
+            orderText += `\n【${subcategory}】\n`;
+            groupedItems[subcategory].forEach(item => {
+                orderText += `${item.name}: ${item.qty}${item.unit}\n`;
+            });
+        }
+        
+        const textDiv = document.createElement('div');
+        textDiv.className = 'whitespace-pre-wrap font-mono text-slate-800 text-sm';
+        textDiv.innerText = orderText.trim();
+        container.appendChild(textDiv);
+    }
+    
     document.getElementById('order-preview').classList.remove('hidden');
     document.getElementById('action-buttons').classList.remove('hidden');
 }
 
 function getFullOrderText() {
-    const title = document.getElementById('order-title').textContent;
-    const list = document.getElementById('order-list').innerText;
-    return `${title}\n--------------------\n${list}`;
+    const mainTitle = document.getElementById('order-main-title').textContent;
+    const subtitle = document.getElementById('order-subtitle').textContent;
+    const date = document.getElementById('order-date').textContent;
+    
+    const listContainer = document.getElementById('order-list-container');
+    let listContent = '';
+
+    const rows = listContainer.querySelectorAll('.flex.justify-between');
+
+    if (rows.length > 1) { // Table format for CK/SF
+        rows.forEach(row => {
+            const left = row.children[0]?.textContent || '';
+            const right = row.children[1]?.textContent || '';
+            listContent += `${left}\t${right}\n`;
+        });
+    } else { // Text format for Veg or empty messages
+        listContent = listContainer.innerText;
+    }
+
+    return `${mainTitle} ${subtitle}\n${date}\n\n${listContent.trim()}`;
 }
 
 function copyOrderText() {
@@ -688,22 +793,22 @@ function shareToLineText() {
 async function shareToLineImage() {
     showLoader();
     const orderPreview = document.getElementById('order-preview');
-    const title = document.getElementById('order-title').textContent || '叫貨單';
+    const title = document.getElementById('order-subtitle').textContent || '叫貨單';
 
     try {
         const canvas = await html2canvas(orderPreview, { scale: 2 });
         if (navigator.share && navigator.canShare) {
             canvas.toBlob(async (blob) => {
-                const file = new File([blob], '叫貨單.png', { type: blob.type });
+                const file = new File([blob], `${title}.png`, { type: blob.type });
                 const shareData = { files: [file], title: title, text: `你好，這是今天的${title}。` };
                 if (navigator.canShare(shareData)) {
                     await navigator.share(shareData);
                 } else {
-                    fallbackShare(canvas);
+                    fallbackShare(canvas, title);
                 }
             }, 'image/png');
         } else {
-            fallbackShare(canvas);
+            fallbackShare(canvas, title);
         }
     } catch (error) {
         console.error('分享失敗:', error);
@@ -713,11 +818,11 @@ async function shareToLineImage() {
     }
 }
 
-function fallbackShare(canvas) {
+function fallbackShare(canvas, title) {
     const image = canvas.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = image;
-    link.download = '叫貨單.png';
+    link.download = `${title}.png`;
     link.click();
     alert("您的瀏覽器不支援直接分享。圖片已為您下載，請手動分享至 LINE。");
 }
