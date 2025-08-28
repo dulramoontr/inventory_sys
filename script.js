@@ -211,7 +211,6 @@ function openItemModal(itemId = null) {
         document.getElementById('modal-item-unit').value = item.Unit;
         document.getElementById('modal-min-stock').value = item.MinStock_Normal;
         document.getElementById('modal-min-stock-holiday').value = item.MinStock_Holiday;
-        // *** MODIFIED: Populate the DefaultStock field ***
         document.getElementById('modal-default-stock').value = item.DefaultStock || '';
         document.getElementById('modal-package-factor').value = item.PackageFactor;
         document.getElementById('modal-is-required').checked = item.IsRequired;
@@ -246,7 +245,6 @@ function handleFormSubmit(event) {
         IsRequired: document.getElementById('modal-is-required').checked,
         MinStock_Normal: parseFloat(document.getElementById('modal-min-stock').value) || 0,
         MinStock_Holiday: parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0,
-        // *** MODIFIED: Read and save the DefaultStock value ***
         DefaultStock: defaultStockValue ? parseFloat(defaultStockValue) : '',
         PackageFactor: currentCategory === '海鮮廠商' ? 1 : (document.getElementById('modal-package-factor').value || 1)
     };
@@ -378,13 +376,13 @@ function renderInventoryList(category) {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/60 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
-        // *** MODIFIED: Pre-fill the input with DefaultStock value ***
+        // *** MODIFIED: Added inputmode="decimal" for better mobile keyboard ***
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-800">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" step="0.1" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
+            <input type="number" step="0.1" inputmode="decimal" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
@@ -405,7 +403,6 @@ function populateHistoryDropdown(logs, selectId) {
 
 function loadHistoricalInventory(logId) {
     if (!logId) {
-        // *** NEW: If no history is selected, render list with default values ***
         const activeTab = document.querySelector('.tabs .tab-link.active') || document.querySelector('.tabs .tab-link');
         if (activeTab) {
             renderInventoryList(activeTab.dataset.category);
@@ -631,12 +628,13 @@ function renderManualOrderForm() {
     vegItems.forEach(item => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg';
+        // *** MODIFIED: Added inputmode="decimal" for better mobile keyboard ***
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-800">${item.ItemName}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" step="0.1" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
+            <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
