@@ -98,7 +98,6 @@ async function initSettingsPage() {
             allItems = result.data;
             setupSettingsTabs();
             renderItemsForCategory('央廚');
-            // *** NEW: Initialize sortable functionality for all tabs ***
             ['tab-ck', 'tab-sf', 'tab-vg'].forEach(id => {
                  const el = document.getElementById(id);
                  new Sortable(el, {
@@ -146,7 +145,6 @@ function renderItemsForCategory(category) {
     container.innerHTML = ''; 
 
     const categoryItems = allItems.filter(item => item.Category === category);
-    // *** NEW: Sort items by SortOrder property ***
     categoryItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
 
     if (categoryItems.length === 0) {
@@ -155,9 +153,7 @@ function renderItemsForCategory(category) {
         categoryItems.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg shadow-sm';
-            // *** NEW: Added data-item-id attribute for reordering ***
             itemDiv.dataset.itemId = item.ItemID;
-            // *** NEW: Added drag handle icon ***
             itemDiv.innerHTML = `
                 <div class="flex items-center">
                     <span class="drag-handle material-symbols-outlined">drag_indicator</span>
@@ -206,6 +202,7 @@ function openItemModal(itemId = null) {
     }
 
     if (itemId) {
+        // Edit mode
         const item = allItems.find(i => i.ItemID === itemId);
         document.getElementById('modal-title').innerText = '編輯品項';
         document.getElementById('modal-item-id').value = item.ItemID;
@@ -214,11 +211,14 @@ function openItemModal(itemId = null) {
         document.getElementById('modal-item-unit').value = item.Unit;
         document.getElementById('modal-min-stock').value = item.MinStock_Normal;
         document.getElementById('modal-min-stock-holiday').value = item.MinStock_Holiday;
+        // *** MODIFIED: Populate the DefaultStock field ***
+        document.getElementById('modal-default-stock').value = item.DefaultStock || '';
         document.getElementById('modal-package-factor').value = item.PackageFactor;
         document.getElementById('modal-is-required').checked = item.IsRequired;
         document.getElementById('modal-subcategory').value = item.SubCategory || '-';
 
     } else {
+        // Add mode
         document.getElementById('modal-title').innerText = '新增品項';
         document.getElementById('modal-item-id').value = `ITEM_${Date.now()}`;
     }
@@ -234,6 +234,8 @@ function handleFormSubmit(event) {
     const itemId = document.getElementById('modal-item-id').value;
     const existingItemIndex = allItems.findIndex(i => i.ItemID === itemId);
     
+    const defaultStockValue = document.getElementById('modal-default-stock').value;
+
     const newItem = {
         ItemID: itemId,
         ItemName: document.getElementById('modal-item-name').value,
@@ -242,8 +244,10 @@ function handleFormSubmit(event) {
         SubCategory: document.getElementById('modal-subcategory').value,
         Unit: document.getElementById('modal-item-unit').value,
         IsRequired: document.getElementById('modal-is-required').checked,
-        MinStock_Normal: document.getElementById('modal-min-stock').value || 0,
-        MinStock_Holiday: document.getElementById('modal-min-stock-holiday').value || 0,
+        MinStock_Normal: parseFloat(document.getElementById('modal-min-stock').value) || 0,
+        MinStock_Holiday: parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0,
+        // *** MODIFIED: Read and save the DefaultStock value ***
+        DefaultStock: defaultStockValue ? parseFloat(defaultStockValue) : '',
         PackageFactor: currentCategory === '海鮮廠商' ? 1 : (document.getElementById('modal-package-factor').value || 1)
     };
     
@@ -255,11 +259,9 @@ function handleFormSubmit(event) {
     }
 
     if (existingItemIndex > -1) {
-        // *** MODIFIED: Preserve SortOrder when editing ***
         newItem.SortOrder = allItems[existingItemIndex].SortOrder;
         allItems[existingItemIndex] = newItem;
     } else {
-        // *** NEW: Assign a new SortOrder for new items ***
         const categoryItems = allItems.filter(i => i.Category === currentCategory);
         newItem.SortOrder = categoryItems.length > 0 ? Math.max(...categoryItems.map(i => i.SortOrder || 0)) + 1 : 1;
         allItems.push(newItem);
@@ -276,7 +278,6 @@ function deleteItem(itemId) {
     }
 }
 
-// *** NEW: Function to update SortOrder based on DOM position ***
 function updateItemsOrderFromDOM() {
     const categories = ['央廚', '海鮮廠商', '菜商'];
     categories.forEach(category => {
@@ -288,14 +289,13 @@ function updateItemsOrderFromDOM() {
             const itemId = el.dataset.itemId;
             const itemInState = allItems.find(i => i.ItemID === itemId);
             if (itemInState) {
-                itemInState.SortOrder = index + 1; // Use 1-based indexing for order
+                itemInState.SortOrder = index + 1;
             }
         });
     });
 }
 
 async function saveAllSettings() {
-    // *** NEW: Update order before saving ***
     updateItemsOrderFromDOM();
 
     const oldAccessCode = document.getElementById('old-access-code').value;
@@ -335,7 +335,6 @@ async function initInventoryPage() {
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
         if (itemsResult) {
             allItems = itemsResult.data;
-            // *** NEW: Sort all items globally after fetching ***
             allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
         }
 
@@ -373,19 +372,19 @@ function renderInventoryList(category) {
     currentCategory = category;
     const container = document.getElementById('inventory-list');
     container.innerHTML = '';
-    // *** MODIFIED: The allItems array is now pre-sorted ***
     const categoryItems = allItems.filter(item => item.Category === category);
 
     categoryItems.forEach(item => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/60 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
+        // *** MODIFIED: Pre-fill the input with DefaultStock value ***
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-800">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 w-24" placeholder="數量">
+            <input type="number" step="0.1" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
@@ -405,7 +404,14 @@ function populateHistoryDropdown(logs, selectId) {
 
 
 function loadHistoricalInventory(logId) {
-    if (!logId) return;
+    if (!logId) {
+        // *** NEW: If no history is selected, render list with default values ***
+        const activeTab = document.querySelector('.tabs .tab-link.active') || document.querySelector('.tabs .tab-link');
+        if (activeTab) {
+            renderInventoryList(activeTab.dataset.category);
+        }
+        return;
+    }
     showLoader();
     const log = inventoryLogs.find(l => l.logId == logId);
     if (!log) {
@@ -495,7 +501,6 @@ async function initOrderPage() {
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
         if (itemsResult) {
              allItems = itemsResult.data;
-             // *** NEW: Sort all items globally after fetching ***
              allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
         }
 
@@ -595,10 +600,8 @@ async function generateOrderList(logId) {
     const title = `${log.category}叫貨單 - ${new Date(log.timestamp).toLocaleString('sv-SE')}`;
     document.getElementById('order-title').textContent = title;
 
-    // *** NEW: Create a map for quick lookup of quantities from the log ***
     const logItemsMap = new Map(log.items.map(item => [item.itemId, item.quantity]));
 
-    // *** MODIFIED: Iterate over the presorted allItems array to generate the order list in the correct order ***
     const categoryItems = allItems.filter(item => item.Category === log.category);
 
     categoryItems.forEach(itemInfo => {
@@ -623,7 +626,6 @@ async function generateOrderList(logId) {
 function renderManualOrderForm() {
     const container = document.getElementById('manual-order-section');
     container.innerHTML = '';
-    // *** MODIFIED: The allItems array is now pre-sorted ***
     const vegItems = allItems.filter(i => i.Category === '菜商');
 
     vegItems.forEach(item => {
@@ -634,7 +636,7 @@ function renderManualOrderForm() {
                 <span class="font-semibold text-slate-800">${item.ItemName}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
+            <input type="number" step="0.1" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
