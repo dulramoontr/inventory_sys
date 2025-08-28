@@ -9,15 +9,15 @@ let allItems = [];
 let inventoryLogs = [];
 let currentCategory = ''; // 用於設定頁面
 
-// --- Utility Functions ---
+// --- Utility Functions (CORRECTED LOADER LOGIC) ---
 const loader = document.getElementById('loader');
-const showLoader = () => loader && (loader.style.display = 'block');
-const hideLoader = () => loader && (loader.style.display = 'none');
+// **FIX**: Use classList to toggle Tailwind's 'hidden' class, which is more reliable.
+const showLoader = () => loader && loader.classList.remove('hidden');
+const hideLoader = () => loader && loader.classList.add('hidden');
 
 /**
  * --- API Request Function (OPTIMIZED) ---
  * This function is updated to ensure the loader is hidden BEFORE any alert message is shown.
- * This provides a better user experience across all pages.
  */
 async function apiRequest(method, payload) {
     showLoader();
@@ -42,11 +42,9 @@ async function apiRequest(method, payload) {
         const result = await response.json();
         if (!result.success) throw new Error(result.message || 'API 請求失敗，請稍後再試。');
         
-        // On success, return data and the calling function will handle hiding the loader.
         return result;
     } catch (error) {
         console.error('API Error:', error);
-        // On error, hide the loader FIRST, then show the alert.
         hideLoader();
         alert(`發生錯誤: ${error.message}`);
         return null;
@@ -78,16 +76,17 @@ async function initSettingsPage() {
     try {
         const verified = sessionStorage.getItem('accessVerified');
         if (!verified) {
+            hideLoader(); // Hide loader before showing prompt
             const code = prompt('請輸入存取碼:');
             if (!code) {
                  window.location.href = 'index.html';
                  return;
             }
+            showLoader(); // Show loader again for API call
             const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
             if (result && result.success) {
                 sessionStorage.setItem('accessVerified', 'true');
             } else {
-                // apiRequest will show an alert, so we just redirect.
                 if(!alert) window.location.href = 'index.html';
                 return;
             }
@@ -99,7 +98,6 @@ async function initSettingsPage() {
         if (result && result.data) {
             allItems = result.data;
             setupSettingsTabs();
-            // Initial render for the default active tab
             renderItemsForCategory('央廚');
         }
 
@@ -118,17 +116,14 @@ function setupSettingsTabs() {
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            // Hide all content panes
             tabContents.forEach(content => content.classList.add('hidden'));
 
-            // Show the target content pane
             const targetId = tab.dataset.tab;
             const targetContent = document.getElementById(targetId);
             if (targetContent) {
                 targetContent.classList.remove('hidden');
             }
 
-            // Determine category and render items
             const category = tab.dataset.tab === 'tab-ck' ? '央廚' : tab.dataset.tab === 'tab-sf' ? '海鮮廠商' : '菜商';
             renderItemsForCategory(category);
         });
@@ -140,7 +135,7 @@ function renderItemsForCategory(category) {
     currentCategory = category;
     const containerId = category === '央廚' ? 'tab-ck' : category === '海鮮廠商' ? 'tab-sf' : 'tab-vg';
     const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Clear previous content
+    container.innerHTML = ''; 
 
     const categoryItems = allItems.filter(item => item.Category === category);
 
@@ -150,35 +145,29 @@ function renderItemsForCategory(category) {
         categoryItems.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg shadow-sm';
-
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'flex flex-col';
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'font-semibold text-slate-800';
-            nameSpan.textContent = item.ItemName;
-            infoDiv.appendChild(nameSpan);
-            
-            const buttonsDiv = document.createElement('div');
-            buttonsDiv.className = 'flex space-x-3';
-            
-            const editButton = document.createElement('button');
-            editButton.className = 'text-sm text-slate-600 hover:text-blue-600 font-medium transition';
-            editButton.textContent = '編輯';
-            editButton.addEventListener('click', () => openItemModal(item.ItemID));
-
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'text-sm text-slate-600 hover:text-red-600 font-medium transition';
-            deleteButton.textContent = '刪除';
-            deleteButton.addEventListener('click', () => deleteItem(item.ItemID));
-
-            buttonsDiv.appendChild(editButton);
-            buttonsDiv.appendChild(deleteButton);
-            
-            infoDiv.appendChild(buttonsDiv);
-            
-            itemDiv.appendChild(infoDiv);
+            itemDiv.innerHTML = `
+                <div class="flex flex-col">
+                    <span class="font-semibold text-slate-800">${item.ItemName}</span>
+                    <div class="flex space-x-3">
+                        <button data-action="edit" data-item-id="${item.ItemID}" class="text-sm text-slate-600 hover:text-blue-600 font-medium transition">編輯</button>
+                        <button data-action="delete" data-item-id="${item.ItemID}" class="text-sm text-slate-600 hover:text-red-600 font-medium transition">刪除</button>
+                    </div>
+                </div>
+            `;
             container.appendChild(itemDiv);
+        });
+        
+        // Add event listeners after rendering
+        container.querySelectorAll('button[data-action]').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                const itemId = e.target.dataset.itemId;
+                if (action === 'edit') {
+                    openItemModal(itemId);
+                } else if (action === 'delete') {
+                    deleteItem(itemId);
+                }
+            });
         });
     }
 }
@@ -290,12 +279,12 @@ async function saveAllSettings() {
     }
 
     const result = await apiRequest('POST', payload);
+    hideLoader(); // Hide loader after API call is finished
     if (result) {
         alert('設定已成功儲存！');
         document.getElementById('old-access-code').value = '';
         document.getElementById('new-access-code').value = '';
     }
-    hideLoader();
 }
 
 // =================================================================
@@ -345,14 +334,15 @@ function renderInventoryList(category) {
 
     categoryItems.forEach(item => {
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'grid grid-cols-3 gap-4 items-center p-3 bg-white/60 rounded-lg';
+        // Switched from grid to flex for better alignment on small screens
+        itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/60 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
         itemDiv.innerHTML = `
-            <div class="col-span-2">
+            <div>
                 <span class="font-semibold text-slate-800">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="數量">
+            <input type="number" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 w-24" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
@@ -380,10 +370,8 @@ function loadHistoricalInventory(logId) {
         return;
     }
 
-    // Switch tab to match log category
     document.querySelectorAll('.tabs .tab-link').forEach(tab => {
         if(tab.dataset.category === log.category) {
-           // Manually trigger click and style update
            document.querySelectorAll('.tabs .tab-link').forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
            tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
            renderInventoryList(log.category);
@@ -392,13 +380,13 @@ function loadHistoricalInventory(logId) {
 
     setTimeout(() => {
         log.items.forEach(item => {
-            const itemRow = document.querySelector(`div[data-item-id="${item.itemId}"]`);
-            if (itemRow) {
-                itemRow.querySelector('.inventory-quantity').value = item.quantity;
+            const itemDiv = document.querySelector(`div[data-item-id="${item.itemId}"]`);
+            if (itemDiv) {
+                itemDiv.querySelector('.inventory-quantity').value = item.quantity;
             }
         });
         hideLoader();
-    }, 100); // Small delay to ensure tab content is rendered
+    }, 100); 
 }
 
 async function saveInventory() {
@@ -447,8 +435,8 @@ async function saveInventory() {
     };
 
     const result = await apiRequest('POST', payload);
+    hideLoader();
     if (result && result.success) {
-        hideLoader();
         alert('盤點儲存成功！');
         window.location.href = `order.html?logId=${result.logId}`;
     }
@@ -549,6 +537,7 @@ function checkTodayLog() {
 async function generateOrderList(logId) {
     if (!logId) {
         document.getElementById('order-preview').classList.add('hidden');
+        document.getElementById('action-buttons').classList.add('hidden');
         return;
     };
     
@@ -580,18 +569,18 @@ async function generateOrderList(logId) {
 
 function renderManualOrderForm() {
     const container = document.getElementById('manual-order-section');
-    container.innerHTML = ''; // Clear previous form
+    container.innerHTML = '';
     const vegItems = allItems.filter(i => i.Category === '菜商');
 
     vegItems.forEach(item => {
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'grid grid-cols-3 gap-4 items-center p-3 bg-white/60 rounded-lg';
+        itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg';
         itemDiv.innerHTML = `
-            <div class="col-span-2">
+            <div>
                 <span class="font-semibold text-slate-800">${item.ItemName}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" class="order-quantity text-right p-2 border border-slate-300 rounded-md" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
+            <input type="number" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
         `;
         container.appendChild(itemDiv);
     });
