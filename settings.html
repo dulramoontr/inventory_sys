@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>參數設定 - 庫存系統</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="index.html">⇦</a> 參數設定</h1>
+        </header>
+        <main id="settings-content" class="hidden">
+            <div class="settings-section">
+                <h3>存取碼修改</h3>
+                <input type="password" id="old-access-code" placeholder="舊存取碼">
+                <input type="password" id="new-access-code" placeholder="新存取碼">
+            </div>
+
+            <div class="tabs">
+                <button class="tab-link active" data-tab="tab-ck">央廚庫存</button>
+                <button class="tab-link" data-tab="tab-sf">海鮮廠商</button>
+                <button class="tab-link" data-tab="tab-vg">菜商叫貨</button>
+            </div>
+
+            <div id="tab-ck" class="tab-content active"></div>
+            <div id="tab-sf" class="tab-content"></div>
+            <div id="tab-vg" class="tab-content"></div>
+            
+            <button id="add-item-btn" class="btn-primary">新增品項</button>
+            <button id="save-settings-btn" class="btn-primary">儲存所有變更</button>
+        </main>
+        <div id="loader" class="loader"></div>
+    </div>
+
+    <div id="item-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3 id="modal-title">新增品項</h3>
+            <form id="item-form">
+                <input type="hidden" id="modal-item-id">
+                <label>品項名稱:</label><input type="text" id="modal-item-name" required>
+                <label>品項說明文字 (選填):</label><input type="text" id="modal-item-desc">
+                <label>單位:</label><input type="text" id="modal-item-unit" required>
+                
+                <div class="modal-fields-common">
+                    <label>一般最低庫存:</label><input type="number" id="modal-min-stock" value="0">
+                    <label>長假最低庫存:</label><input type="number" id="modal-min-stock-holiday" value="0">
+                    <label>包裝方式:</label><input type="number" id="modal-package-factor" value="1">
+                    <label><input type="checkbox" id="modal-is-required"> 是否為必填</label>
+                </div>
+                
+                <div class="modal-fields-veg">
+                     <label>品項類別:</label>
+                     <select id="modal-subcategory">
+                        <option value="-">無</option>
+                        <option value="蔬菜">蔬菜</option>
+                        <option value="火鍋料">火鍋料</option>
+                        <option value="其他">其他</option>
+                     </select>
+                </div>
+
+                <button type="submit" class="btn-primary">儲存</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>叫貨清單 - 庫存系統</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="index.html">⇦</a> 叫貨清單</h1>
+        </header>
+        <main>
+            <div class="tabs">
+                <button class="tab-link active" data-category="央廚">央廚叫貨</button>
+                <button class="tab-link" data-category="海鮮廠商">海鮮叫貨</button>
+                <button class="tab-link" data-category="菜商">菜商叫貨</button>
+            </div>
+
+            <div class="order-section" id="auto-order-section">
+                <div class="history-loader">
+                    <label for="order-history-select">選取盤點紀錄:</label>
+                    <select id="order-history-select"></select>
+                </div>
+                 <p id="no-today-log-warning" class="warning-text hidden">注意：今天尚無盤點紀錄，請確認是否使用舊資料。</p>
+            </div>
+
+            <div class="order-section hidden" id="manual-order-section">
+                 </div>
+
+            <hr>
+
+            <div id="order-preview">
+                <h3 id="order-title">叫貨單</h3>
+                <div id="order-list"></div>
+            </div>
+
+            <div id="action-buttons" class="action-buttons hidden">
+                <button id="copy-text-btn" class="btn-secondary">複製清單文字</button>
+                <button id="share-line-text-btn" class="btn-primary">LINE 分享 (文字)</button>
+                <button id="share-line-img-btn" class="btn-primary">LINE 分享 (圖檔)</button>
+            </div>
+        </main>
+        <div id="loader" class="loader"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>庫存盤點 - 庫存系統</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="index.html">⇦</a> 庫存盤點</h1>
+        </header>
+        <main>
+            <div class="tabs">
+                <button class="tab-link active" data-category="央廚">央廚庫存盤點</button>
+                <button class="tab-link" data-category="海鮮廠商">海鮮庫存盤點</button>
+            </div>
+            
+            <div class="history-loader">
+                <label for="history-select">載入歷史盤點紀錄:</label>
+                <select id="history-select">
+                    <option value="">請選擇...</option>
+                </select>
+            </div>
+
+            <div id="inventory-list">
+                </div>
+            
+            <button id="save-inventory-btn" class="btn-primary">儲存盤點並前往叫貨</button>
+        </main>
+        <div id="loader" class="loader"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

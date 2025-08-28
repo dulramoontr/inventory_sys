@@ -1,584 +1,641 @@
-// 全新版本 script.js - 修正 CORS 問題
+// =================================================================
+// CONFIGURATION
+// Google Apps Script URL
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwZMCD8Sh3Vhx4dc0rpSUNTjhOdt-Sj7r9zQKN9AsvhfkJSvdstZWU9_IK8_3GDKz4GNg/exec';
+// =================================================================
 
-// --- [!!!] 重要設定：Google Apps Script URL ---
-const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyZPXa8dTaOnP8TicTZqCripD9kcGP8gzLvg4jckLJlEBlLz3fbKl3-qz2HhvwUWYI0/exec';
+// --- Global State ---
+let allItems = [];
+let inventoryLogs = [];
+let currentCategory = ''; // 用於設定頁面
 
-// --- GLOBAL STATE & DOM REFERENCES ---
-const appState = {
-  currentPage: 'home-menu',
-  parameters: [],
-  inventoryRecords: [],
-  currentCategory: '',
-  accessCode: null, // 用來存放已驗證的存取碼
-};
-const views = {
-  loader: document.getElementById('loader'),
-  accessView: document.getElementById('access-view'),
-  appView: document.getElementById('app-view'),
-  mainContent: document.getElementById('main-content'),
-  pageTitle: document.getElementById('page-title'),
-  homeBtn: document.getElementById('home-btn')
-};
+// --- Utility Functions ---
+const loader = document.getElementById('loader');
+const showLoader = () => loader.style.display = 'block';
+const hideLoader = () => loader.style.display = 'none';
 
-// --- UTILITY FUNCTIONS ---
-function showLoader() { views.loader.classList.remove('hidden'); }
-function hideLoader() { views.loader.classList.add('hidden'); }
-function navigateTo(pageId) {
-    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-    const targetPage = document.getElementById(pageId);
-    if (targetPage) { targetPage.classList.remove('hidden'); }
-    if (pageId === 'home-menu') {
-        views.pageTitle.textContent = '主選單';
-        views.homeBtn.classList.add('hidden');
-    } else {
-        views.homeBtn.classList.remove('hidden');
-    }
-    window.scrollTo(0, 0);
-}
-function formatDate(date) {
-    return new Date(date).toLocaleString('zh-TW', { timeStyle:'short', dateStyle: 'short' });
-}
-
-// --- API COMMUNICATION (修正 CORS 問題) ---
-async function runGAS(functionName, ...args) {
-    if (!GAS_API_URL || GAS_API_URL.includes('在這裡貼上')) {
-        alert('錯誤：尚未設定 Google Apps Script API URL！請編輯 script.js 檔案。');
-        throw new Error('GAS API URL not configured.');
-    }
+async function apiRequest(method, payload) {
     showLoader();
-
-    // 對於受保護的函式，自動在參數最後加上存取碼
-    const protectedFunctions = ['saveParameter', 'deleteParameter', 'updateAccessCode', 'saveInventoryRecord', 'verifyAccessCode'];
-    if (protectedFunctions.includes(functionName)) {
-        args.push(appState.accessCode);
-    }
-    
-    const payload = JSON.stringify({ functionName, args });
-
     try {
-        // 使用 GET 請求並將 payload 作為查詢參數傳送
-        const requestUrl = `${GAS_API_URL}?payload=${encodeURIComponent(payload)}`;
-        
-        const response = await fetch(requestUrl, { 
-            method: 'GET',
-            mode: 'cors', // 明確指定 CORS 模式
-            cache: 'no-cache',
-            redirect: "follow" 
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
+        const options = {
+            method: method,
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        };
+        if (method === 'POST') {
+            options.body = JSON.stringify(payload);
         }
         
+        let url = GAS_URL;
+        if (method === 'GET') {
+           url += `?action=${payload.action}`;
+           if(payload.logId) url += `&logId=${payload.logId}`;
+        }
+
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error('Network response was not ok');
         const result = await response.json();
-        if (result.success) {
-            return result.data;
-        } else {
-            // 如果後端回報存取碼錯誤，清除本地存取碼
-            if (result.message && result.message.includes("Access Denied")) {
-                appState.accessCode = null;
-                alert("存取碼錯誤或已過期，請重新驗證。");
-            }
-            throw new Error(result.message || '發生未知錯誤');
-        }
+        if (!result.success) throw new Error(result.message || 'API request failed');
+        return result;
     } catch (error) {
-        console.error('API 呼叫失敗:', error);
-        alert(`與後端伺服器通訊失敗: ${error.message}`);
-        throw error;
+        alert(`發生錯誤: ${error.message}`);
+        console.error('API Error:', error);
+        return null;
     } finally {
         hideLoader();
     }
 }
 
-// --- INITIALIZATION & EVENT HANDLERS ---
+// --- Page Initializers ---
 document.addEventListener('DOMContentLoaded', () => {
-    // 登入相關監聽器
-    document.getElementById('login-btn').addEventListener('click', handleAccessCodeSubmit);
-    document.getElementById('access-code-input').addEventListener('keyup', e => {
-        if (e.key === 'Enter') handleAccessCodeSubmit();
-    });
-    document.getElementById('cancel-login-btn').addEventListener('click', () => {
-        views.accessView.classList.add('hidden');
-    });
-
-    views.homeBtn.addEventListener('click', () => navigateTo('home-menu'));
-    document.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('click', handleCardClick);
-    });
-    
-    // 其他監聽器
-    document.getElementById('load-history-btn').addEventListener('click', handleLoadHistoryClick);
-    document.getElementById('history-dropdown').addEventListener('change', handleHistorySelection);
-    document.getElementById('save-inventory-btn').addEventListener('click', handleSaveInventory);
-    document.getElementById('generate-order-btn').addEventListener('click', handleGenerateOrder);
-    document.getElementById('order-history-dropdown').addEventListener('change', renderOrderFromInventory);
-    document.querySelectorAll('input[name="minStockType"]').forEach(radio => radio.addEventListener('change', renderOrderFromInventory));
-    document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
-    document.getElementById('share-line-text-btn').addEventListener('click', shareOrderToLineText);
-    document.getElementById('share-line-image-btn').addEventListener('click', shareOrderToLineImage);
-    document.querySelector('.tabs').addEventListener('click', handleTabClick);
-    document.getElementById('save-access-code-btn').addEventListener('click', handleSaveAccessCode);
-    document.getElementById('add-param-btn').addEventListener('click', () => openParamModal(null, appState.currentCategory));
-    document.querySelector('#param-modal .close-btn').addEventListener('click', closeParamModal);
-    document.getElementById('param-form').addEventListener('submit', handleParamFormSubmit);
-
-    // 啟動應用程式
-    initializeApp();
+    const path = window.location.pathname.split("/").pop();
+    switch (path) {
+        case 'settings.html':
+            initSettingsPage();
+            break;
+        case 'inventory.html':
+            initInventoryPage();
+            break;
+        case 'order.html':
+            initOrderPage();
+            break;
+    }
 });
 
-async function initializeApp() {
-    // 一進入網頁就顯示主選單並載入公開資料
-    views.appView.classList.remove('hidden');
-    views.accessView.classList.add('hidden');
-    navigateTo('home-menu');
-    await initializePublicData();
-}
-
-async function initializePublicData() {
-    try {
-        const [params, records] = await Promise.all([
-            runGAS('getParameters'),
-            runGAS('getInventoryRecords')
-        ]);
-        appState.parameters = params || [];
-        appState.inventoryRecords = records || [];
-    } catch(e) {
-        console.error("無法載入初始資料:", e);
-    }
-}
-
-// 新的點擊處理邏輯
-function handleCardClick(e) {
-    const targetPage = e.currentTarget.dataset.target;
-    const category = e.currentTarget.dataset.category;
-
-    // 如果點擊的是設定，檢查存取碼
-    if (targetPage === 'settings-page') {
-        if (appState.accessCode) {
-            views.pageTitle.textContent = '參數設定';
-            document.querySelector('.tabs .tab-btn[data-category="央廚"]').click();
-            navigateTo(targetPage);
+// =================================================================
+// SETTINGS PAGE LOGIC (`settings.html`)
+// =================================================================
+async function initSettingsPage() {
+    // Access Code Verification
+    const verified = sessionStorage.getItem('accessVerified');
+    if (!verified) {
+        const code = prompt('請輸入存取碼:');
+        if (!code) {
+             window.location.href = 'index.html';
+             return;
+        }
+        const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
+        if (result && result.success) {
+            sessionStorage.setItem('accessVerified', 'true');
         } else {
-            showAccessPrompt();
+            alert('存取碼錯誤！');
+            window.location.href = 'index.html';
+            return;
         }
-        return;
     }
     
-    // 其他卡片的處理邏輯不變
-    if (category) {
-        appState.currentCategory = category;
-        views.pageTitle.textContent = `${category} - ${targetPage.includes('inventory') ? '庫存盤點' : '叫貨'}`;
+    document.getElementById('settings-content').classList.remove('hidden');
+
+    const result = await apiRequest('GET', { action: 'getItems' });
+    if (result && result.data) {
+        allItems = result.data;
+        setupSettingsTabs();
+        renderItemsForCategory('央廚');
     }
-    if (targetPage === 'inventory-page') renderInventoryPage();
-    else if (targetPage === 'order-page') renderOrderPage();
-    navigateTo(targetPage);
+
+    document.getElementById('save-settings-btn').addEventListener('click', saveAllSettings);
+    document.getElementById('add-item-btn').addEventListener('click', () => openItemModal());
+    document.querySelector('.modal .close-btn').addEventListener('click', closeItemModal);
+    document.getElementById('item-form').addEventListener('submit', handleFormSubmit);
 }
 
-// 顯示存取碼輸入框
-function showAccessPrompt() {
-    document.getElementById('login-error').textContent = '';
-    document.getElementById('access-code-input').value = '';
-    views.accessView.classList.remove('hidden');
-    document.getElementById('access-code-input').focus();
-}
-
-// 處理存取碼提交
-async function handleAccessCodeSubmit() {
-    const code = document.getElementById('access-code-input').value;
-    if (!code) {
-        document.getElementById('login-error').textContent = '請輸入存取碼';
-        return;
-    }
-    try {
-        await runGAS('verifyAccessCode', code); 
-        appState.accessCode = code; 
-        views.accessView.classList.add('hidden');
-        // 成功後，導向至設定頁面
-        views.pageTitle.textContent = '參數設定';
-        document.querySelector('.tabs .tab-btn[data-category="央廚"]').click();
-        navigateTo('settings-page');
-    } catch (error) {
-        document.getElementById('login-error').textContent = '存取碼錯誤';
-        console.error("驗證失敗:", error);
-    }
-}
-
-// 修改儲存盤點函式，使其需要存取碼
-async function handleSaveInventory() {
-    if (!appState.accessCode) {
-        alert("請先在「參數設定」中驗證存取碼，才能儲存紀錄。");
-        showAccessPrompt();
-        return;
-    }
-    const record = { category: appState.currentCategory, items: {} };
-    let hasInput = false;
-    document.querySelectorAll('.inventory-item').forEach(el => {
-        const itemId = el.dataset.itemid;
-        const quantity = el.querySelector('.inventory-quantity').value;
-        if(quantity !== '' && quantity !== null) {
-            record.items[itemId] = parseFloat(quantity);
-            hasInput = true;
-        }
-    });
-    if (!hasInput) { alert('請至少輸入一項盤點數量'); return; }
-    try {
-        await runGAS('saveInventoryRecord', record);
-        alert('盤點紀錄儲存成功！');
-        await initializePublicData();
-        views.pageTitle.textContent = `${appState.currentCategory} - 叫貨`;
-        renderOrderPage(true);
-        navigateTo('order-page');
-    } catch (error) { console.error("Failed to save inventory:", error); }
-}
-
-// 其他函式保持不變
-function renderInventoryPage(){
-    const listEl=document.getElementById("inventory-list");
-    listEl.innerHTML="";
-    const items=appState.parameters.filter(p=>p.Category===appState.currentCategory);
-    items.forEach(item=>{
-        const itemDiv=document.createElement("div");
-        itemDiv.className="inventory-item";
-        itemDiv.dataset.itemid=item.ItemID;
-        itemDiv.innerHTML=`
-            <div class="item-name">${item.ItemName}</div>
-            ${item.Description?`<div class="item-desc">${item.Description}</div>`:""}
-            <div class="input-group">
-                <label>盤點數量:</label>
-                <input type="number" class="inventory-quantity" placeholder="0" min="0" inputmode="numeric">
-            </div>
-        `;
-        listEl.appendChild(itemDiv)
-    });
-    document.getElementById("history-dropdown").classList.add("hidden")
-}
-
-function handleLoadHistoryClick(){
-    const dropdown=document.getElementById("history-dropdown");
-    dropdown.innerHTML='<option value="">請選擇歷史紀錄</option>';
-    const records=appState.inventoryRecords.filter(r=>r.Category===appState.currentCategory);
-    if(records.length>0){
-        records.forEach(r=>{
-            dropdown.innerHTML+=`<option value="${r.RecordID}">${formatDate(r.Timestamp)}</option>`
+function setupSettingsTabs() {
+    const tabs = document.querySelectorAll('.tabs .tab-link');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            tab.classList.add('active');
+            const category = tab.dataset.tab === 'tab-ck' ? '央廚' : tab.dataset.tab === 'tab-sf' ? '海鮮廠商' : '菜商';
+            document.getElementById(tab.dataset.tab).classList.add('active');
+            renderItemsForCategory(category);
         });
-        dropdown.classList.remove("hidden")
-    }else{
-        alert("沒有符合的歷史紀錄")
-    }
+    });
 }
 
-function handleHistorySelection(e){
-    const recordId=e.target.value;
-    if(!recordId)return;
-    const record=appState.inventoryRecords.find(r=>r.RecordID===recordId);
-    if(record){
-        const items=JSON.parse(record.Records);
-        document.querySelectorAll(".inventory-item").forEach(el=>{
-            const itemId=el.dataset.itemid;
-            const quantityInput=el.querySelector(".inventory-quantity");
-            quantityInput.value=items[itemId]||""
-        })
-    }
-}
-
-function renderOrderPage(fromInventorySave=false){
-    const directInputSection=document.getElementById("order-direct-input-section");
-    const fromInventorySection=document.getElementById("order-from-inventory-section");
-    const generateBtn=document.getElementById("generate-order-btn");
-    const outputContainer=document.getElementById("order-output-container");
+function renderItemsForCategory(category) {
+    currentCategory = category;
+    const containerId = category === '央廚' ? 'tab-ck' : category === '海鮮廠商' ? 'tab-sf' : 'tab-vg';
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
     
-    directInputSection.classList.add("hidden");
-    fromInventorySection.classList.add("hidden");
-    generateBtn.classList.add("hidden");
-    outputContainer.classList.add("hidden");
-    directInputSection.innerHTML="";
-    
-    if("菜商"===appState.currentCategory){
-        directInputSection.classList.remove("hidden");
-        generateBtn.classList.remove("hidden");
-        const items=appState.parameters.filter(p=>"菜商"===p.Category);
-        const groupedItems=items.reduce((acc,item)=>{
-            const group=item.SubCategory||"其他";
-            acc[group]||(acc[group]=[]);
-            acc[group].push(item);
-            return acc
-        },{});
-        for(const group in groupedItems){
-            directInputSection.innerHTML+=`<h3>${group}</h3>`;
-            groupedItems[group].forEach(item=>{
-                directInputSection.innerHTML+=`
-                    <div class="order-item" data-itemid="${item.ItemID}">
-                        <div class="item-name">${item.ItemName}</div>
-                        ${item.Description?`<div class="item-desc">${item.Description}</div>`:""}
-                        <div class="input-group">
-                            <label>叫貨數量:</label>
-                            <input type="number" class="order-quantity" placeholder="0" min="0" inputmode="numeric">
-                        </div>
-                    </div>
-                `
-            })
-        }
-    }else{
-        fromInventorySection.classList.remove("hidden");
-        const dropdown=document.getElementById("order-history-dropdown");
-        const infoMsg=document.getElementById("order-no-today-record");
-        dropdown.innerHTML="";
-        const relevantRecords=appState.inventoryRecords.filter(r=>r.Category===appState.currentCategory);
-        const today=(new Date).toDateString();
-        const todayRecord=relevantRecords.find(r=>(new Date(r.Timestamp)).toDateString()===today);
-        if(fromInventorySave||todayRecord){
-            infoMsg.classList.add("hidden");
-            dropdown.classList.add("hidden");
-            renderOrderFromInventory(fromInventorySave?relevantRecords[0]:todayRecord)
-        }else{
-            infoMsg.textContent="未找到今日盤點紀錄，請選擇一筆歷史紀錄作為計算依據";
-            infoMsg.classList.remove("hidden");
-            dropdown.classList.remove("hidden");
-            dropdown.innerHTML='<option value="">請選擇盤點紀錄</option>';
-            relevantRecords.forEach(r=>{
-                dropdown.innerHTML+=`<option value="${r.RecordID}">${formatDate(r.Timestamp)}</option>`
-            })
-        }
-    }
-}
+    const categoryItems = allItems.filter(item => item.Category === category);
 
-function renderOrderFromInventory(record){
-    let recordToUse=record;
-    if(event&&event.target&&"order-history-dropdown"===event.target.id){
-        const recordId=event.target.value;
-        if(!recordId)return void document.getElementById("order-output-container").classList.add("hidden");
-        recordToUse=appState.inventoryRecords.find(r=>r.RecordID===recordId)
-    }else if(event&&event.target&&"minStockType"===event.target.name){
-        const selectedId=document.getElementById("order-history-dropdown").value;
-        if(selectedId){
-            recordToUse=appState.inventoryRecords.find(r=>r.RecordID===selectedId)
-        }else{
-            const today=(new Date).toDateString();
-            recordToUse=appState.inventoryRecords.find(r=>r.Category===appState.currentCategory&&(new Date(r.Timestamp)).toDateString()===today)
-        }
-        recordToUse||(recordToUse=appState.inventoryRecords[0]);
-        if(!recordToUse)return
-    }
-    if(!recordToUse||!recordToUse.Records)return;
-    const inventoryItems=JSON.parse(recordToUse.Records);
-    const minStockType=document.querySelector('input[name="minStockType"]:checked').value;
-    const orderList=[];
-    appState.parameters.filter(p=>p.Category===appState.currentCategory).forEach(param=>{
-        const currentStock=inventoryItems[param.ItemID]??-1/0;
-        const minStock=param[minStockType]||0;
-        const packageFactor=param.PackageFactor||1;
-        if(currentStock<minStock){
-            const orderQty=Math.ceil((minStock-currentStock)/packageFactor);
-            orderQty>0&&orderList.push({name:param.ItemName,quantity:orderQty,unit:param.Unit})
-        }
-    });
-    generateFinalOrderList(orderList)
-}
-
-function handleGenerateOrder(){
-    if("菜商"===appState.currentCategory){
-        const orderList=[];
-        document.querySelectorAll("#order-direct-input-section .order-item").forEach(el=>{
-            const quantity=el.querySelector(".order-quantity").value;
-            if(quantity&&parseFloat(quantity)>0){
-                const itemId=el.dataset.itemid;
-                const param=appState.parameters.find(p=>p.ItemID===itemId);
-                param&&orderList.push({name:param.ItemName,quantity:parseFloat(quantity),unit:param.Unit})
-            }
-        });
-        generateFinalOrderList(orderList)
-    }
-}
-
-function generateFinalOrderList(orderList){
-    const container=document.getElementById("order-output-container");
-    if(0===orderList.length)return alert("沒有需要叫貨的品項"),void container.classList.add("hidden");
-    document.getElementById("order-title").textContent=`${appState.currentCategory}叫貨單`;
-    document.getElementById("order-timestamp").textContent=`產生時間: ${formatDate(new Date)}`;
-    const tableBody=document.querySelector("#order-table tbody");
-    tableBody.innerHTML="";
-    orderList.forEach(item=>{
-        tableBody.innerHTML+=`<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.unit}</td></tr>`
-    });
-    container.classList.remove("hidden")
-}
-
-function getOrderAsText(){
-    let text=`${document.getElementById("order-title").textContent}\n`;
-    text+=`${document.getElementById("order-timestamp").textContent}\n\n`;
-    document.querySelectorAll("#order-table tbody tr").forEach(row=>{
-        const cells=row.querySelectorAll("td");
-        text+=`${cells[0].textContent}: ${cells[1].textContent} ${cells[2].textContent}\n`
-    });
-    return text
-}
-
-function copyOrderText(){
-    const text=getOrderAsText();
-    navigator.clipboard.writeText(text).then(()=>{
-        alert("叫貨清單已複製！")
-    },()=>{
-        alert("複製失敗")
-    })
-}
-
-function shareOrderToLineText(){
-    const text=getOrderAsText();
-    const lineUrl=`https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
-    window.open(lineUrl,"_blank")
-}
-
-async function shareOrderToLineImage(){
-    showLoader();
-    try{
-        const canvas=await html2canvas(document.getElementById("order-output"));
-        const imageUrl=canvas.toDataURL("image/png");
-        const newTab=window.open();
-        newTab.document.write(`
-            <body style="margin:0; text-align:center; background-color:#f0f0f0;">
-              <h2 style="font-family:sans-serif;">請長按或右鍵點擊圖片，即可儲存或分享</h2>
-              <img src="${imageUrl}" style="max-width: 100%; border: 1px solid #ccc;">
-            </body>
-        `)
-    }catch(e){
-        alert("產生圖片失敗: "+e.message)
-    }finally{
-        hideLoader()
-    }
-}
-
-function handleTabClick(e){
-    if(!e.target.classList.contains("tab-btn"))return;
-    document.querySelectorAll(".tab-btn").forEach(btn=>btn.classList.remove("active"));
-    e.target.classList.add("active");
-    appState.currentCategory=e.target.dataset.category;
-    renderSettingsList()
-}
-
-function renderSettingsList(){
-    const listEl=document.getElementById("settings-list");
-    listEl.innerHTML="";
-    const items=appState.parameters.filter(p=>p.Category===appState.currentCategory);
-    if(0===items.length){
-        listEl.innerHTML="<p>尚無品項</p>"
-    }else{
-        items.forEach(item=>{
-            const itemDiv=document.createElement("div");
-            itemDiv.dataset.itemid=item.ItemID;
-            itemDiv.innerHTML=`
-                <div class="item-controls">
-                    <button class="edit-param-btn">修改</button>
-                    <button class="delete-param-btn">刪除</button>
+    if (categoryItems.length === 0) {
+        container.innerHTML = '<p>此分類下尚無品項。</p>';
+    } else {
+        categoryItems.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'item-row';
+            itemDiv.innerHTML = `
+                <span>${item.ItemName}</span>
+                <div>
+                    <button class="btn-secondary" onclick="openItemModal('${item.ItemID}')">編輯</button>
+                    <button class="btn-danger" onclick="deleteItem('${item.ItemID}')">刪除</button>
                 </div>
-                <div class="item-name">${item.ItemName}</div>
-                <div class="item-desc">單位: ${item.Unit}</div>
             `;
-            listEl.appendChild(itemDiv)
-        })
-    }
-    document.querySelectorAll(".edit-param-btn").forEach(btn=>{
-        btn.addEventListener("click",e=>{
-            const itemId=e.target.closest("div[data-itemid]").dataset.itemid;
-            const item=appState.parameters.find(p=>p.ItemID===itemId);
-            openParamModal(item)
-        })
-    });
-    document.querySelectorAll(".delete-param-btn").forEach(btn=>{
-        btn.addEventListener("click",handleDeleteParameter)
-    })
-}
-
-async function handleSaveAccessCode(){
-    const newCode=document.getElementById("new-access-code").value;
-    const confirmCode=document.getElementById("confirm-access-code").value;
-    if(!newCode||newCode!==confirmCode)return void alert("新存取碼為空或兩次輸入不一致");
-    try{
-        await runGAS("updateAccessCode",newCode);
-        alert("存取碼更新成功");
-        document.getElementById("new-access-code").value="";
-        document.getElementById("confirm-access-code").value=""
-    }catch(error){
-        console.error("Failed to save access code:",error)
+            container.appendChild(itemDiv);
+        });
     }
 }
 
-function openParamModal(item=null,category=appState.currentCategory){
-    const form=document.getElementById("param-form");
+function openItemModal(itemId = null) {
+    const modal = document.getElementById('item-modal');
+    const form = document.getElementById('item-form');
     form.reset();
-    document.getElementById("param-SubCategory-container").classList.add("hidden");
-    document.getElementById("inventory-params-container").classList.add("hidden");
-    const categoryToUse=item?item.Category:category;
-    if(item){
-        document.getElementById("modal-title").textContent="修改品項";
-        document.getElementById("param-ItemID").value=item.ItemID;
-        document.getElementById("param-ItemName").value=item.ItemName;
-        document.getElementById("param-SubCategory").value=item.SubCategory||"蔬菜";
-        document.getElementById("param-Description").value=item.Description;
-        document.getElementById("param-Unit").value=item.Unit;
-        document.getElementById("param-PackageFactor").value=item.PackageFactor||1;
-        document.getElementById("param-MinStockNormal").value=item.MinStockNormal||0;
-        document.getElementById("param-MinStockHoliday").value=item.MinStockHoliday||0;
-        document.getElementById("param-IsRequired").checked=item.IsRequired
-    }else{
-        document.getElementById("modal-title").textContent="新增品項";
-        document.getElementById("param-ItemID").value=""
+    
+    document.querySelector('.modal-fields-common').style.display = 'block';
+    document.querySelector('.modal-fields-veg').style.display = 'none';
+
+    if (currentCategory === '菜商') {
+        document.querySelector('.modal-fields-common').style.display = 'none';
+        document.querySelector('.modal-fields-veg').style.display = 'block';
+    } else if (currentCategory === '海鮮廠商') {
+        document.getElementById('modal-package-factor').parentElement.style.display = 'none';
+    } else {
+         document.getElementById('modal-package-factor').parentElement.style.display = 'block';
     }
-    document.getElementById("param-Category").value=categoryToUse;
-    if("菜商"===categoryToUse){
-        document.getElementById("param-SubCategory-container").classList.remove("hidden")
-    }else{
-        document.getElementById("inventory-params-container").classList.remove("hidden")
+
+    if (itemId) {
+        // Edit mode
+        const item = allItems.find(i => i.ItemID === itemId);
+        document.getElementById('modal-title').innerText = '編輯品項';
+        document.getElementById('modal-item-id').value = item.ItemID;
+        document.getElementById('modal-item-name').value = item.ItemName;
+        document.getElementById('modal-item-desc').value = item.Description;
+        document.getElementById('modal-item-unit').value = item.Unit;
+        document.getElementById('modal-min-stock').value = item.MinStock_Normal;
+        document.getElementById('modal-min-stock-holiday').value = item.MinStock_Holiday;
+        document.getElementById('modal-package-factor').value = item.PackageFactor;
+        document.getElementById('modal-is-required').checked = item.IsRequired;
+        document.getElementById('modal-subcategory').value = item.SubCategory || '-';
+
+    } else {
+        // Add mode
+        document.getElementById('modal-title').innerText = '新增品項';
+        document.getElementById('modal-item-id').value = `ITEM_${Date.now()}`;
     }
-    document.getElementById("param-modal").classList.remove("hidden")
+    modal.style.display = 'block';
 }
 
-function closeParamModal(){
-    document.getElementById("param-modal").classList.add("hidden")
+function closeItemModal() {
+    document.getElementById('item-modal').style.display = 'none';
 }
 
-async function handleParamFormSubmit(e){
-    e.preventDefault();
-    const paramObj={
-        ItemID:document.getElementById("param-ItemID").value,
-        Category:document.getElementById("param-Category").value,
-        ItemName:document.getElementById("param-ItemName").value,
-        SubCategory:document.getElementById("param-SubCategory").value,
-        Description:document.getElementById("param-Description").value,
-        Unit:document.getElementById("param-Unit").value,
-        PackageFactor:document.getElementById("param-PackageFactor").value,
-        MinStockNormal:document.getElementById("param-MinStockNormal").value,
-        MinStockHoliday:document.getElementById("param-MinStockHoliday").value,
-        IsRequired:document.getElementById("param-IsRequired").checked
+function handleFormSubmit(event) {
+    event.preventDefault();
+    const itemId = document.getElementById('modal-item-id').value;
+    const existingItemIndex = allItems.findIndex(i => i.ItemID === itemId);
+    
+    const newItem = {
+        ItemID: itemId,
+        ItemName: document.getElementById('modal-item-name').value,
+        Description: document.getElementById('modal-item-desc').value,
+        Category: currentCategory,
+        SubCategory: document.getElementById('modal-subcategory').value,
+        Unit: document.getElementById('modal-item-unit').value,
+        IsRequired: document.getElementById('modal-is-required').checked,
+        MinStock_Normal: document.getElementById('modal-min-stock').value || 0,
+        MinStock_Holiday: document.getElementById('modal-min-stock-holiday').value || 0,
+        PackageFactor: currentCategory === '海鮮廠商' ? 1 : (document.getElementById('modal-package-factor').value || 1)
     };
-    try{
-        const savedParam=await runGAS("saveParameter",paramObj);
-        if(savedParam){
-            const index=appState.parameters.findIndex(p=>p.ItemID===savedParam.ItemID);
-            if(index>-1){
-                appState.parameters[index]=savedParam
-            }else{
-                appState.parameters.push(savedParam)
-            }
-            renderSettingsList();
-            closeParamModal()
-        }
-    }catch(error){
-        console.error("Failed to save parameter:",error)
+    
+    if (currentCategory === '菜商') {
+        newItem.MinStock_Normal = '';
+        newItem.MinStock_Holiday = '';
+        newItem.PackageFactor = '';
+        newItem.IsRequired = false;
+    }
+
+    if (existingItemIndex > -1) {
+        allItems[existingItemIndex] = newItem;
+    } else {
+        allItems.push(newItem);
+    }
+    
+    renderItemsForCategory(currentCategory);
+    closeItemModal();
+}
+
+function deleteItem(itemId) {
+    if (confirm('確定要刪除這個品項嗎？')) {
+        allItems = allItems.filter(i => i.ItemID !== itemId);
+        renderItemsForCategory(currentCategory);
     }
 }
 
-async function handleDeleteParameter(e){
-    const itemId=e.target.closest("div[data-itemid]").dataset.itemid;
-    if(confirm("確定要刪除此品項嗎？（此操作無法復原）")){
-        try{
-            await runGAS("deleteParameter",itemId);
-            const param=appState.parameters.find(p=>p.ItemID===itemId);
-            if(param){
-                param.IsActive=false
-            }
-            renderSettingsList()
-        }catch(error){
-            console.error("Failed to delete parameter:",error)
-        }
+async function saveAllSettings() {
+    const oldAccessCode = document.getElementById('old-access-code').value;
+    const newAccessCode = document.getElementById('new-access-code').value;
+
+    if (newAccessCode && !oldAccessCode) {
+        alert('若要修改存取碼，必須輸入舊存取碼！');
+        return;
     }
+    
+    const payload = {
+        action: 'updateSettings',
+        payload: {
+            items: allItems
+        }
+    };
+    if (newAccessCode) {
+        payload.payload.oldAccessCode = oldAccessCode;
+        payload.payload.newAccessCode = newAccessCode;
+    }
+
+    const result = await apiRequest('POST', payload);
+    if (result) {
+        alert('設定已成功儲存！');
+        document.getElementById('old-access-code').value = '';
+        document.getElementById('new-access-code').value = '';
+    }
+}
+
+// =================================================================
+// INVENTORY PAGE LOGIC (`inventory.html`)
+// =================================================================
+async function initInventoryPage() {
+    const itemsResult = await apiRequest('GET', { action: 'getItems' });
+    if (itemsResult) allItems = itemsResult.data;
+
+    const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
+    if (logsResult) {
+        inventoryLogs = logsResult.data;
+        populateHistoryDropdown(inventoryLogs, 'history-select');
+    }
+
+    document.querySelector('#history-select').addEventListener('change', (e) => {
+        loadHistoricalInventory(e.target.value);
+    });
+    
+    setupInventoryTabs();
+    renderInventoryList('央廚');
+
+    document.getElementById('save-inventory-btn').addEventListener('click', saveInventory);
+}
+
+function setupInventoryTabs() {
+    const tabs = document.querySelectorAll('.tabs .tab-link');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            renderInventoryList(tab.dataset.category);
+        });
+    });
+}
+
+function renderInventoryList(category) {
+    currentCategory = category;
+    const container = document.getElementById('inventory-list');
+    container.innerHTML = '';
+    const categoryItems = allItems.filter(item => item.Category === category);
+
+    categoryItems.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'inventory-item';
+        itemDiv.dataset.itemId = item.ItemID;
+        itemDiv.innerHTML = `
+            <div class="item-info">
+                <span class="item-name">${item.ItemName} ${item.IsRequired ? '*' : ''}</span>
+                <p class="item-desc">${item.Description || ''}</p>
+            </div>
+            <input type="number" class="inventory-quantity" placeholder="數量">
+        `;
+        container.appendChild(itemDiv);
+    });
+}
+
+function populateHistoryDropdown(logs, selectId) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">請選擇...</option>';
+    logs.forEach(log => {
+        const option = document.createElement('option');
+        option.value = log.logId;
+        option.textContent = `${log.category} - ${new Date(log.timestamp).toLocaleString('sv-SE')}`;
+        select.appendChild(option);
+    });
+}
+
+
+function loadHistoricalInventory(logId) {
+    if (!logId) return;
+    const log = inventoryLogs.find(l => l.logId == logId);
+    if (!log) return;
+
+    // Switch tab to match log category
+    document.querySelectorAll('.tabs .tab-link').forEach(tab => {
+        if(tab.dataset.category === log.category) {
+           tab.click();
+        }
+    });
+
+    setTimeout(() => {
+        log.items.forEach(item => {
+            const itemRow = document.querySelector(`.inventory-item[data-item-id="${item.itemId}"]`);
+            if (itemRow) {
+                itemRow.querySelector('.inventory-quantity').value = item.quantity;
+            }
+        });
+    }, 100); // Small delay to ensure tab content is rendered
+}
+
+async function saveInventory() {
+    const itemsToSave = [];
+    let validationFailed = false;
+    
+    const itemElements = document.querySelectorAll('#inventory-list .inventory-item');
+    itemElements.forEach(el => {
+        const itemId = el.dataset.itemId;
+        const itemInfo = allItems.find(i => i.ItemID === itemId);
+        const quantityInput = el.querySelector('.inventory-quantity');
+        const quantity = quantityInput.value;
+
+        if (itemInfo.IsRequired && (quantity === '' || quantity === null)) {
+            validationFailed = true;
+            quantityInput.style.border = '2px solid red';
+        } else {
+             quantityInput.style.border = '';
+        }
+
+        if (quantity !== '' && quantity !== null) {
+            itemsToSave.push({
+                itemId: itemId,
+                itemName: itemInfo.ItemName,
+                quantity: parseFloat(quantity)
+            });
+        }
+    });
+
+    if (validationFailed) {
+        alert('有必填品項尚未填寫盤點數量！');
+        return;
+    }
+
+    if (itemsToSave.length === 0) {
+        alert('請至少輸入一項盤點數量。');
+        return;
+    }
+
+    const payload = {
+        action: 'saveInventory',
+        payload: {
+            category: currentCategory,
+            items: itemsToSave
+        }
+    };
+
+    const result = await apiRequest('POST', payload);
+    if (result && result.success) {
+        alert('盤點儲存成功！');
+        window.location.href = `order.html?logId=${result.logId}`;
+    }
+}
+
+
+// =================================================================
+// ORDER PAGE LOGIC (`order.html`)
+// =================================================================
+async function initOrderPage() {
+    const itemsResult = await apiRequest('GET', { action: 'getItems' });
+    if (itemsResult) allItems = itemsResult.data;
+
+    const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
+    if (logsResult) {
+        inventoryLogs = logsResult.data;
+        populateHistoryDropdown(inventoryLogs, 'order-history-select');
+        checkTodayLog();
+    }
+    
+    setupOrderTabs();
+
+    document.getElementById('order-history-select').addEventListener('change', (e) => {
+        generateOrderList(e.target.value);
+    });
+
+    // Check for logId from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const logId = urlParams.get('logId');
+    if (logId) {
+        const log = (await apiRequest('GET', {action: 'getLogById', logId: logId})).data;
+        if(log){
+            // Switch tab
+            const targetTab = document.querySelector(`.tab-link[data-category="${log.category}"]`);
+            if (targetTab) {
+                targetTab.click();
+            }
+            // Set dropdown and generate list
+            document.getElementById('order-history-select').value = logId;
+            generateOrderList(logId);
+        }
+    } else {
+       // Default view
+       handleOrderTabClick('央廚');
+    }
+
+    document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
+    document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
+    document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
+
+}
+
+function setupOrderTabs() {
+    document.querySelectorAll('.tabs .tab-link').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tabs .tab-link').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            handleOrderTabClick(tab.dataset.category);
+        });
+    });
+}
+
+function handleOrderTabClick(category) {
+    currentCategory = category;
+    document.getElementById('order-preview').innerHTML = `<h3 id="order-title">叫貨單</h3><div id="order-list"></div>`;
+    document.getElementById('action-buttons').classList.add('hidden');
+
+    if (category === '央廚' || category === '海鮮廠商') {
+        document.getElementById('auto-order-section').classList.remove('hidden');
+        document.getElementById('manual-order-section').classList.add('hidden');
+        // Auto-select latest log for this category
+        const latestLog = inventoryLogs.find(log => log.category === category);
+        if(latestLog) {
+            document.getElementById('order-history-select').value = latestLog.logId;
+            generateOrderList(latestLog.logId);
+        }
+    } else { // 菜商
+        document.getElementById('auto-order-section').classList.add('hidden');
+        document.getElementById('manual-order-section').classList.remove('hidden');
+        renderManualOrderForm();
+    }
+}
+
+function checkTodayLog() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const hasTodayLog = inventoryLogs.some(log => log.timestamp.startsWith(todayStr));
+    if (!hasTodayLog) {
+        document.getElementById('no-today-log-warning').classList.remove('hidden');
+    }
+}
+
+async function generateOrderList(logId) {
+    if (!logId) return;
+    const log = inventoryLogs.find(l => l.logId == logId);
+    if (!log) return;
+    
+    let orderText = '';
+    const title = `${log.category}叫貨單 - ${new Date(log.timestamp).toLocaleString('sv-SE')}`;
+    document.getElementById('order-title').textContent = title;
+
+    log.items.forEach(logItem => {
+        const itemInfo = allItems.find(i => i.ItemID === logItem.itemId);
+        if (!itemInfo) return;
+
+        const minStock = itemInfo.MinStock_Normal; // Simplified: can add holiday logic later
+        const packageFactor = itemInfo.PackageFactor || 1;
+        
+        let orderQuantity = Math.ceil((minStock - logItem.quantity) / packageFactor);
+
+        if (orderQuantity > 0) {
+            orderText += `${itemInfo.ItemName}：${orderQuantity} ${itemInfo.Unit}\n`;
+        }
+    });
+
+    document.getElementById('order-list').innerText = orderText || '所有品項庫存充足，無需叫貨。';
+    document.getElementById('action-buttons').classList.remove('hidden');
+}
+
+function renderManualOrderForm() {
+    const container = document.getElementById('manual-order-section');
+    container.innerHTML = '';
+    const vegItems = allItems.filter(i => i.Category === '菜商');
+
+    vegItems.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'order-item-manual';
+        itemDiv.innerHTML = `
+            <div class="item-info">
+                <span class="item-name">${item.ItemName}</span>
+                <p class="item-desc">${item.Description || ''}</p>
+            </div>
+            <input type="number" class="order-quantity" data-item-name="${item.ItemName}" data-unit="${item.Unit}" placeholder="數量">
+        `;
+        container.appendChild(itemDiv);
+    });
+    
+    const generateBtn = document.createElement('button');
+    generateBtn.className = 'btn-primary';
+    generateBtn.textContent = '產生叫貨單';
+    generateBtn.onclick = generateManualOrder;
+    container.appendChild(generateBtn);
+}
+
+function generateManualOrder() {
+    let orderText = '';
+    const title = `菜商叫貨單 - ${new Date().toLocaleString('sv-SE').slice(0, 16)}`;
+    document.getElementById('order-title').textContent = title;
+    
+    document.querySelectorAll('.order-quantity').forEach(input => {
+        const quantity = input.value;
+        if (quantity && parseFloat(quantity) > 0) {
+            orderText += `${input.dataset.itemName}：${quantity} ${input.dataset.unit}\n`;
+        }
+    });
+
+    document.getElementById('order-list').innerText = orderText || '尚未輸入任何叫貨數量。';
+    document.getElementById('action-buttons').classList.remove('hidden');
+}
+
+
+function getFullOrderText() {
+    const title = document.getElementById('order-title').textContent;
+    const list = document.getElementById('order-list').innerText;
+    return `${title}\n--------------------\n${list}`;
+}
+
+function copyOrderText() {
+    const textToCopy = getFullOrderText();
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        alert('清單文字已複製！');
+    }, (err) => {
+        alert('複製失敗: ', err);
+    });
+}
+
+function shareToLineText() {
+    const text = getFullOrderText();
+    if (!text) return;
+    const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+    window.open(lineUrl, '_blank');
+}
+
+async function shareToLineImage() {
+    const orderPreview = document.getElementById('order-preview');
+    const title = document.getElementById('order-title').textContent || '叫貨單';
+
+    // 檢查是否支援 Web Share API 且是否能分享檔案
+    if (navigator.share && navigator.canShare) {
+        // --- 使用 Web Share API 的新式分享流程 ---
+        try {
+            alert("正在產生圖片，請稍候...");
+            const canvas = await html2canvas(orderPreview);
+            
+            // 將 canvas 轉換成 Blob 物件
+            canvas.toBlob(async (blob) => {
+                // 將 Blob 包裝成 File 物件
+                const file = new File([blob], '叫貨單.png', { type: blob.type });
+
+                // 準備要分享的資料
+                const shareData = {
+                    files: [file],
+                    title: title,
+                    text: `你好，這是今天的${title}。`,
+                };
+
+                // 檢查瀏覽器是否能分享我們準備的資料
+                if (navigator.canShare(shareData)) {
+                    // 呼叫原生分享功能
+                    await navigator.share(shareData);
+                    console.log('圖片分享成功！');
+                } else {
+                    console.warn('無法分享此類型的檔案。');
+                    // 若因某些原因無法分享檔案，則退回舊方法
+                    fallbackShare(canvas);
+                }
+            }, 'image/png');
+
+        } catch (error) {
+            // 使用者可能手動取消分享，或發生其他錯誤
+            if (error.name !== 'AbortError') {
+                 console.error('分享失敗:', error);
+                 alert(`分享失敗: ${error.message}`);
+            }
+        }
+
+    } else {
+        // --- 不支援 Web Share API 時的舊方法 ---
+        alert("您的瀏覽器不支援直接分享，將為您產生圖片供手動下載。");
+        const canvas = await html2canvas(orderPreview);
+        fallbackShare(canvas);
+    }
+}
+
+// 舊的、用於手動下載的分享方式 (Fallback)
+function fallbackShare(canvas) {
+    const image = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = '叫貨單.png';
+    
+    // 在新分頁中顯示圖片和下載按鈕，引導使用者手動操作
+    const newWindow = window.open();
+    newWindow.document.write('<h3>長按圖片或點擊下載按鈕，即可儲存並分享至LINE</h3>');
+    newWindow.document.write(`<img src="${image}" width="100%" style="border: 1px solid #ccc;">`);
+    newWindow.document.write('<br>');
+    const downloadBtn = newWindow.document.createElement('a');
+    downloadBtn.href = image;
+    downloadBtn.download = '叫貨單.png';
+    downloadBtn.innerHTML = '<button style="padding:20px; font-size: 22px; width:100%; box-sizing: border-box;">點我下載圖片</button>';
+    newWindow.document.body.appendChild(downloadBtn);
 }
