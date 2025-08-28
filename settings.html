@@ -6,6 +6,7 @@
     <title>參數設定 - 庫存系統</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,7 +16,6 @@
         body { font-family: 'Noto Sans TC', sans-serif; background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
         .glass-card { background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.7); }
         
-        /* --- CORRECTED LOADER STYLES --- */
         .loader {
             position: fixed;
             inset: 0;
@@ -42,6 +42,20 @@
         }
         .hidden { display: none !important; }
         .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+        
+        /* --- NEW: Styles for drag handle and ghost element --- */
+        .drag-handle {
+            cursor: grab;
+            padding: 0 8px;
+            color: #94a3b8; /* slate-400 */
+        }
+        .drag-handle:hover {
+            color: #475569; /* slate-600 */
+        }
+        .sortable-ghost {
+            background: rgba(71, 85, 105, 0.1);
+            border-radius: 0.5rem;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -70,9 +84,9 @@
                 <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-vg">菜商叫貨</button>
             </div>
 
-            <div id="tab-ck" class="tab-content active min-h-[100px]"></div>
-            <div id="tab-sf" class="tab-content min-h-[100px]"></div>
-            <div id="tab-vg" class="tab-content min-h-[100px]"></div>
+            <div id="tab-ck" class="tab-content active min-h-[100px] space-y-2"></div>
+            <div id="tab-sf" class="tab-content min-h-[100px] space-y-2"></div>
+            <div id="tab-vg" class="tab-content min-h-[100px] space-y-2"></div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                  <button id="add-item-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/80 text-blue-600 font-bold rounded-lg shadow-md hover:bg-white transition-all">

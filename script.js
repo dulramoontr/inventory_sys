@@ -11,7 +11,6 @@ let currentCategory = ''; // 用於設定頁面
 
 // --- Utility Functions (CORRECTED LOADER LOGIC) ---
 const loader = document.getElementById('loader');
-// **FIX**: Use classList to toggle Tailwind's 'hidden' class, which is more reliable.
 const showLoader = () => loader && loader.classList.remove('hidden');
 const hideLoader = () => loader && loader.classList.add('hidden');
 
@@ -76,13 +75,13 @@ async function initSettingsPage() {
     try {
         const verified = sessionStorage.getItem('accessVerified');
         if (!verified) {
-            hideLoader(); // Hide loader before showing prompt
+            hideLoader();
             const code = prompt('請輸入存取碼:');
             if (!code) {
                  window.location.href = 'index.html';
                  return;
             }
-            showLoader(); // Show loader again for API call
+            showLoader();
             const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
             if (result && result.success) {
                 sessionStorage.setItem('accessVerified', 'true');
@@ -99,6 +98,15 @@ async function initSettingsPage() {
             allItems = result.data;
             setupSettingsTabs();
             renderItemsForCategory('央廚');
+            // *** NEW: Initialize sortable functionality for all tabs ***
+            ['tab-ck', 'tab-sf', 'tab-vg'].forEach(id => {
+                 const el = document.getElementById(id);
+                 new Sortable(el, {
+                    animation: 150,
+                    handle: '.drag-handle',
+                    ghostClass: 'sortable-ghost',
+                });
+            });
         }
 
         document.getElementById('save-settings-btn').addEventListener('click', saveAllSettings);
@@ -138,6 +146,8 @@ function renderItemsForCategory(category) {
     container.innerHTML = ''; 
 
     const categoryItems = allItems.filter(item => item.Category === category);
+    // *** NEW: Sort items by SortOrder property ***
+    categoryItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
 
     if (categoryItems.length === 0) {
         container.innerHTML = `<p class="text-slate-500 text-center py-4">此分類下尚無品項。</p>`;
@@ -145,19 +155,24 @@ function renderItemsForCategory(category) {
         categoryItems.forEach(item => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg shadow-sm';
+            // *** NEW: Added data-item-id attribute for reordering ***
+            itemDiv.dataset.itemId = item.ItemID;
+            // *** NEW: Added drag handle icon ***
             itemDiv.innerHTML = `
-                <div class="flex flex-col">
-                    <span class="font-semibold text-slate-800">${item.ItemName}</span>
-                    <div class="flex space-x-3">
-                        <button data-action="edit" data-item-id="${item.ItemID}" class="text-sm text-slate-600 hover:text-blue-600 font-medium transition">編輯</button>
-                        <button data-action="delete" data-item-id="${item.ItemID}" class="text-sm text-slate-600 hover:text-red-600 font-medium transition">刪除</button>
+                <div class="flex items-center">
+                    <span class="drag-handle material-symbols-outlined">drag_indicator</span>
+                    <div class="flex flex-col ml-2">
+                        <span class="font-semibold text-slate-800">${item.ItemName}</span>
                     </div>
+                </div>
+                <div class="flex space-x-3">
+                    <button data-action="edit" data-item-id="${item.ItemID}" class="text-sm text-slate-600 hover:text-blue-600 font-medium transition">編輯</button>
+                    <button data-action="delete" data-item-id="${item.ItemID}" class="text-sm text-slate-600 hover:text-red-600 font-medium transition">刪除</button>
                 </div>
             `;
             container.appendChild(itemDiv);
         });
         
-        // Add event listeners after rendering
         container.querySelectorAll('button[data-action]').forEach(button => {
             button.addEventListener('click', (e) => {
                 const action = e.target.dataset.action;
@@ -191,7 +206,6 @@ function openItemModal(itemId = null) {
     }
 
     if (itemId) {
-        // Edit mode
         const item = allItems.find(i => i.ItemID === itemId);
         document.getElementById('modal-title').innerText = '編輯品項';
         document.getElementById('modal-item-id').value = item.ItemID;
@@ -205,7 +219,6 @@ function openItemModal(itemId = null) {
         document.getElementById('modal-subcategory').value = item.SubCategory || '-';
 
     } else {
-        // Add mode
         document.getElementById('modal-title').innerText = '新增品項';
         document.getElementById('modal-item-id').value = `ITEM_${Date.now()}`;
     }
@@ -242,8 +255,13 @@ function handleFormSubmit(event) {
     }
 
     if (existingItemIndex > -1) {
+        // *** MODIFIED: Preserve SortOrder when editing ***
+        newItem.SortOrder = allItems[existingItemIndex].SortOrder;
         allItems[existingItemIndex] = newItem;
     } else {
+        // *** NEW: Assign a new SortOrder for new items ***
+        const categoryItems = allItems.filter(i => i.Category === currentCategory);
+        newItem.SortOrder = categoryItems.length > 0 ? Math.max(...categoryItems.map(i => i.SortOrder || 0)) + 1 : 1;
         allItems.push(newItem);
     }
     
@@ -258,7 +276,28 @@ function deleteItem(itemId) {
     }
 }
 
+// *** NEW: Function to update SortOrder based on DOM position ***
+function updateItemsOrderFromDOM() {
+    const categories = ['央廚', '海鮮廠商', '菜商'];
+    categories.forEach(category => {
+        const containerId = category === '央廚' ? 'tab-ck' : category === '海鮮廠商' ? 'tab-sf' : 'tab-vg';
+        const container = document.getElementById(containerId);
+        const itemElements = container.querySelectorAll('div[data-item-id]');
+        
+        itemElements.forEach((el, index) => {
+            const itemId = el.dataset.itemId;
+            const itemInState = allItems.find(i => i.ItemID === itemId);
+            if (itemInState) {
+                itemInState.SortOrder = index + 1; // Use 1-based indexing for order
+            }
+        });
+    });
+}
+
 async function saveAllSettings() {
+    // *** NEW: Update order before saving ***
+    updateItemsOrderFromDOM();
+
     const oldAccessCode = document.getElementById('old-access-code').value;
     const newAccessCode = document.getElementById('new-access-code').value;
 
@@ -279,7 +318,7 @@ async function saveAllSettings() {
     }
 
     const result = await apiRequest('POST', payload);
-    hideLoader(); // Hide loader after API call is finished
+    hideLoader();
     if (result) {
         alert('設定已成功儲存！');
         document.getElementById('old-access-code').value = '';
@@ -294,7 +333,11 @@ async function initInventoryPage() {
     showLoader();
     try {
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
-        if (itemsResult) allItems = itemsResult.data;
+        if (itemsResult) {
+            allItems = itemsResult.data;
+            // *** NEW: Sort all items globally after fetching ***
+            allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+        }
 
         const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
         if (logsResult) {
@@ -330,11 +373,11 @@ function renderInventoryList(category) {
     currentCategory = category;
     const container = document.getElementById('inventory-list');
     container.innerHTML = '';
+    // *** MODIFIED: The allItems array is now pre-sorted ***
     const categoryItems = allItems.filter(item => item.Category === category);
 
     categoryItems.forEach(item => {
         const itemDiv = document.createElement('div');
-        // Switched from grid to flex for better alignment on small screens
         itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/60 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
         itemDiv.innerHTML = `
@@ -450,7 +493,11 @@ async function initOrderPage() {
     showLoader();
     try {
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
-        if (itemsResult) allItems = itemsResult.data;
+        if (itemsResult) {
+             allItems = itemsResult.data;
+             // *** NEW: Sort all items globally after fetching ***
+             allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+        }
 
         const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
         if (logsResult) {
@@ -548,14 +595,20 @@ async function generateOrderList(logId) {
     const title = `${log.category}叫貨單 - ${new Date(log.timestamp).toLocaleString('sv-SE')}`;
     document.getElementById('order-title').textContent = title;
 
-    log.items.forEach(logItem => {
-        const itemInfo = allItems.find(i => i.ItemID === logItem.itemId);
-        if (!itemInfo || !itemInfo.MinStock_Normal) return;
+    // *** NEW: Create a map for quick lookup of quantities from the log ***
+    const logItemsMap = new Map(log.items.map(item => [item.itemId, item.quantity]));
 
+    // *** MODIFIED: Iterate over the presorted allItems array to generate the order list in the correct order ***
+    const categoryItems = allItems.filter(item => item.Category === log.category);
+
+    categoryItems.forEach(itemInfo => {
+        if (!logItemsMap.has(itemInfo.ItemID) || !itemInfo.MinStock_Normal) return;
+
+        const quantity = logItemsMap.get(itemInfo.ItemID);
         const minStock = itemInfo.MinStock_Normal;
         const packageFactor = itemInfo.PackageFactor || 1;
         
-        let orderQuantity = Math.ceil((minStock - logItem.quantity) / packageFactor);
+        let orderQuantity = Math.ceil((minStock - quantity) / packageFactor);
 
         if (orderQuantity > 0) {
             orderText += `${itemInfo.ItemName}：${orderQuantity} ${itemInfo.Unit}\n`;
@@ -570,6 +623,7 @@ async function generateOrderList(logId) {
 function renderManualOrderForm() {
     const container = document.getElementById('manual-order-section');
     container.innerHTML = '';
+    // *** MODIFIED: The allItems array is now pre-sorted ***
     const vegItems = allItems.filter(i => i.Category === '菜商');
 
     vegItems.forEach(item => {
