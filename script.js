@@ -7,14 +7,13 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbwZMCD8Sh3Vhx4dc0rpSUNT
 // --- Global State ---
 let allItems = [];
 let inventoryLogs = [];
-let currentCategory = ''; // Used for settings page
+let currentCategory = ''; 
 
 // --- Utility Functions ---
 const loader = document.getElementById('loader');
 const showLoader = () => loader && loader.classList.remove('hidden');
 const hideLoader = () => loader && loader.classList.add('hidden');
 
-// *** NEW: Date formatting helpers ***
 function getFormattedDate(timestampStr) {
     const date = new Date(timestampStr);
     const year = date.getFullYear();
@@ -116,7 +115,6 @@ async function initSettingsPage() {
             allItems = result.data;
             setupSettingsTabs();
             renderItemsForCategory('央廚');
-            // Initialize sortable functionality for all tabs
             ['tab-ck', 'tab-sf', 'tab-vg'].forEach(id => {
                  const el = document.getElementById(id);
                  new Sortable(el, {
@@ -143,13 +141,9 @@ function setupSettingsTabs() {
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             tabContents.forEach(content => content.classList.add('hidden'));
-
             const targetId = tab.dataset.tab;
             const targetContent = document.getElementById(targetId);
-            if (targetContent) {
-                targetContent.classList.remove('hidden');
-            }
-
+            if (targetContent) targetContent.classList.remove('hidden');
             const category = tab.dataset.tab === 'tab-ck' ? '央廚' : tab.dataset.tab === 'tab-sf' ? '海鮮廠商' : '菜商';
             renderItemsForCategory(category);
         });
@@ -163,7 +157,6 @@ function renderItemsForCategory(category) {
     container.innerHTML = ''; 
 
     const categoryItems = allItems.filter(item => item.Category === category);
-    // Sort items by SortOrder property
     categoryItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
 
     if (categoryItems.length === 0) {
@@ -173,7 +166,6 @@ function renderItemsForCategory(category) {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg shadow-sm';
             itemDiv.dataset.itemId = item.ItemID;
-            // Added drag handle icon
             itemDiv.innerHTML = `
                 <div class="flex items-center">
                     <span class="drag-handle material-symbols-outlined">drag_indicator</span>
@@ -193,16 +185,14 @@ function renderItemsForCategory(category) {
             button.addEventListener('click', (e) => {
                 const action = e.target.dataset.action;
                 const itemId = e.target.dataset.itemId;
-                if (action === 'edit') {
-                    openItemModal(itemId);
-                } else if (action === 'delete') {
-                    deleteItem(itemId);
-                }
+                if (action === 'edit') openItemModal(itemId);
+                else if (action === 'delete') deleteItem(itemId);
             });
         });
     }
 }
 
+// *** MODIFIED: To handle separate unit fields ***
 function openItemModal(itemId = null) {
     const modal = document.getElementById('item-modal');
     const form = document.getElementById('item-form');
@@ -227,14 +217,14 @@ function openItemModal(itemId = null) {
         document.getElementById('modal-item-id').value = item.ItemID;
         document.getElementById('modal-item-name').value = item.ItemName;
         document.getElementById('modal-item-desc').value = item.Description;
-        document.getElementById('modal-item-unit').value = item.Unit;
+        document.getElementById('modal-unit-inventory').value = item.Unit_Inventory || item.Unit; // Fallback for old data
+        document.getElementById('modal-unit-order').value = item.Unit_Order || '';
         document.getElementById('modal-min-stock').value = item.MinStock_Normal;
         document.getElementById('modal-min-stock-holiday').value = item.MinStock_Holiday;
         document.getElementById('modal-default-stock').value = item.DefaultStock || '';
         document.getElementById('modal-package-factor').value = item.PackageFactor;
         document.getElementById('modal-is-required').checked = item.IsRequired;
         document.getElementById('modal-subcategory').value = item.SubCategory || '-';
-
     } else {
         // Add mode
         document.getElementById('modal-title').innerText = '新增品項';
@@ -247,12 +237,15 @@ function closeItemModal() {
     document.getElementById('item-modal').classList.add('hidden');
 }
 
+// *** MODIFIED: To save separate unit fields ***
 function handleFormSubmit(event) {
     event.preventDefault();
     const itemId = document.getElementById('modal-item-id').value;
     const existingItemIndex = allItems.findIndex(i => i.ItemID === itemId);
     
     const defaultStockValue = document.getElementById('modal-default-stock').value;
+    const unitInventory = document.getElementById('modal-unit-inventory').value;
+    const unitOrder = document.getElementById('modal-unit-order').value;
 
     const newItem = {
         ItemID: itemId,
@@ -260,7 +253,8 @@ function handleFormSubmit(event) {
         Description: document.getElementById('modal-item-desc').value,
         Category: currentCategory,
         SubCategory: document.getElementById('modal-subcategory').value,
-        Unit: document.getElementById('modal-item-unit').value,
+        Unit_Inventory: unitInventory,
+        Unit_Order: unitOrder || unitInventory, // Default to inventory unit if empty
         IsRequired: document.getElementById('modal-is-required').checked,
         MinStock_Normal: parseFloat(document.getElementById('modal-min-stock').value) || 0,
         MinStock_Holiday: parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0,
@@ -276,11 +270,9 @@ function handleFormSubmit(event) {
     }
 
     if (existingItemIndex > -1) {
-        // Preserve SortOrder when editing
         newItem.SortOrder = allItems[existingItemIndex].SortOrder;
         allItems[existingItemIndex] = newItem;
     } else {
-        // Assign a new SortOrder for new items
         const categoryItems = allItems.filter(i => i.Category === currentCategory);
         newItem.SortOrder = categoryItems.length > 0 ? Math.max(...categoryItems.map(i => i.SortOrder || 0)) + 1 : 1;
         allItems.push(newItem);
@@ -297,7 +289,6 @@ function deleteItem(itemId) {
     }
 }
 
-// Function to update SortOrder based on DOM position
 function updateItemsOrderFromDOM() {
     const categories = ['央廚', '海鮮廠商', '菜商'];
     categories.forEach(category => {
@@ -308,17 +299,13 @@ function updateItemsOrderFromDOM() {
         itemElements.forEach((el, index) => {
             const itemId = el.dataset.itemId;
             const itemInState = allItems.find(i => i.ItemID === itemId);
-            if (itemInState) {
-                itemInState.SortOrder = index + 1; // Use 1-based indexing for order
-            }
+            if (itemInState) itemInState.SortOrder = index + 1;
         });
     });
 }
 
 async function saveAllSettings() {
-    // Update order before saving
     updateItemsOrderFromDOM();
-
     const oldAccessCode = document.getElementById('old-access-code').value;
     const newAccessCode = document.getElementById('new-access-code').value;
 
@@ -329,9 +316,7 @@ async function saveAllSettings() {
     
     const payload = {
         action: 'updateSettings',
-        payload: {
-            items: allItems
-        }
+        payload: { items: allItems }
     };
     if (newAccessCode) {
         payload.payload.oldAccessCode = oldAccessCode;
@@ -389,6 +374,7 @@ function setupInventoryTabs() {
     });
 }
 
+// *** MODIFIED: To display inventory unit ***
 function renderInventoryList(category) {
     currentCategory = category;
     const container = document.getElementById('inventory-list');
@@ -399,13 +385,16 @@ function renderInventoryList(category) {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/60 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
-        // Added inputmode="decimal" and pre-fill with DefaultStock
+        const inventoryUnit = item.Unit_Inventory || item.Unit; // Fallback for old data
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-800">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" step="0.1" inputmode="decimal" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
+            <div class="flex items-center gap-2">
+                <input type="number" step="0.1" inputmode="decimal" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
+                <span class="text-slate-600 w-12 text-left">${inventoryUnit}</span>
+            </div>
         `;
         container.appendChild(itemDiv);
     });
@@ -425,11 +414,8 @@ function populateHistoryDropdown(logs, selectId) {
 
 function loadHistoricalInventory(logId) {
     if (!logId) {
-        // If no history is selected, render list with default values
         const activeTab = document.querySelector('.tabs .tab-link.active') || document.querySelector('.tabs .tab-link');
-        if (activeTab) {
-            renderInventoryList(activeTab.dataset.category);
-        }
+        if (activeTab) renderInventoryList(activeTab.dataset.category);
         return;
     }
     showLoader();
@@ -462,8 +448,7 @@ async function saveInventory() {
     const itemsToSave = [];
     let validationFailed = false;
     
-    const itemElements = document.querySelectorAll('#inventory-list div[data-item-id]');
-    itemElements.forEach(el => {
+    document.querySelectorAll('#inventory-list div[data-item-id]').forEach(el => {
         const itemId = el.dataset.itemId;
         const itemInfo = allItems.find(i => i.ItemID === itemId);
         const quantityInput = el.querySelector('.inventory-quantity');
@@ -497,10 +482,7 @@ async function saveInventory() {
 
     const payload = {
         action: 'saveInventory',
-        payload: {
-            category: currentCategory,
-            items: itemsToSave
-        }
+        payload: { category: currentCategory, items: itemsToSave }
     };
 
     const result = await apiRequest('POST', payload);
@@ -543,9 +525,7 @@ async function initOrderPage() {
             if(logResult && logResult.data){
                 const log = logResult.data;
                 const targetTab = document.querySelector(`.tab-link[data-category="${log.category}"]`);
-                if (targetTab) {
-                    targetTab.click();
-                }
+                if (targetTab) targetTab.click();
                 document.getElementById('order-history-select').value = logId;
                 await generateOrderList(logId);
             }
@@ -600,13 +580,11 @@ function checkTodayLog() {
     const todayStr = new Date().toISOString().slice(0, 10);
     const hasTodayLog = inventoryLogs.some(log => log.timestamp.startsWith(todayStr));
     const warningEl = document.getElementById('no-today-log-warning');
-    if (!hasTodayLog) {
-        warningEl.classList.remove('hidden');
-    } else {
-        warningEl.classList.add('hidden');
-    }
+    if (!hasTodayLog) warningEl.classList.remove('hidden');
+    else warningEl.classList.add('hidden');
 }
 
+// *** MODIFIED: To use order unit ***
 async function generateOrderList(logId) {
     if (!logId) {
         document.getElementById('order-preview').classList.add('hidden');
@@ -617,7 +595,6 @@ async function generateOrderList(logId) {
     const log = inventoryLogs.find(l => l.logId == logId);
     if (!log) return;
     
-    // Set titles and date
     document.getElementById('order-subtitle').textContent = `${log.category}叫貨單`;
     document.getElementById('order-date').textContent = `${getFormattedDate(log.timestamp)}`;
     
@@ -635,12 +612,13 @@ async function generateOrderList(logId) {
         const minStock = itemInfo.MinStock_Normal;
         const packageFactor = itemInfo.PackageFactor || 1;
         const orderQuantity = Math.ceil((minStock - quantity) / packageFactor);
+        const orderUnit = itemInfo.Unit_Order || itemInfo.Unit_Inventory || itemInfo.Unit;
 
         if (orderQuantity > 0) {
             itemsToOrder.push({
                 name: itemInfo.ItemName,
                 qty: orderQuantity,
-                unit: itemInfo.Unit
+                unit: orderUnit
             });
         }
     });
@@ -669,6 +647,7 @@ async function generateOrderList(logId) {
     document.getElementById('action-buttons').classList.remove('hidden');
 }
 
+// *** MODIFIED: To display order unit ***
 function renderManualOrderForm() {
     const container = document.getElementById('manual-order-section');
     container.innerHTML = '';
@@ -677,12 +656,16 @@ function renderManualOrderForm() {
     vegItems.forEach(item => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg';
+        const orderUnit = item.Unit_Order || item.Unit_Inventory || item.Unit;
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-800">${item.ItemName}</span>
                 <p class="text-sm text-slate-500">${item.Description || ''}</p>
             </div>
-            <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${item.Unit}" data-subcategory="${item.SubCategory || '其他'}" placeholder="數量">
+            <div class="flex items-center gap-2">
+                <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${orderUnit}" data-subcategory="${item.SubCategory || '其他'}" placeholder="數量">
+                <span class="text-slate-600 w-12 text-left">${orderUnit}</span>
+            </div>
         `;
         container.appendChild(itemDiv);
     });

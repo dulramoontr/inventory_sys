@@ -114,9 +114,15 @@
                     <label class="block text-sm font-medium text-slate-600 mb-1">品項說明文字 (選填):</label>
                     <input type="text" id="modal-item-desc" class="w-full p-2 bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500">
                 </div>
-                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">單位:</label>
-                    <input type="text" id="modal-item-unit" required class="w-full p-2 bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">盤點單位:</label>
+                        <input type="text" id="modal-unit-inventory" required class="w-full p-2 bg-white border border-slate-300 rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">叫貨單位 (選填):</label>
+                        <input type="text" id="modal-unit-order" placeholder="若留空，則與盤點單位相同" class="w-full p-2 bg-white border border-slate-300 rounded-md">
+                    </div>
                 </div>
                 
                 <div class="modal-fields-common space-y-4">
