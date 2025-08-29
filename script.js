@@ -33,9 +33,6 @@ function getFormattedDateTime(timestampStr) {
     return `${year}/${month}/${day} ${hours}:${minutes}`;
 }
 
-/**
- * --- API Request Function ---
- */
 async function apiRequest(method, payload) {
     showLoader();
     try {
@@ -81,11 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'order.html':
             initOrderPage();
             break;
-        case 'veg-order.html': // New page initializer
+        case 'veg-order.html':
             initVegOrderPage();
             break;
     }
 });
+
 
 // =================================================================
 // SETTINGS PAGE LOGIC (`settings.html`)
@@ -513,7 +511,6 @@ async function initOrderPage() {
         if (logsResult) {
             inventoryLogs = logsResult.data;
             populateHistoryDropdown(inventoryLogs, 'order-history-select');
-            checkTodayLog();
         }
         
         setupOrderTabs();
@@ -534,7 +531,7 @@ async function initOrderPage() {
                 await generateOrderList(logId);
             }
         } else {
-           handleOrderTabClick('央廚');
+           handleOrderTabClick('央廚'); // Default to the first tab
         }
 
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
@@ -553,13 +550,24 @@ function setupOrderTabs() {
     });
 }
 
+// *** MODIFIED: Added logic to check for today's log and show warning ***
 function handleOrderTabClick(category) {
     currentCategory = category;
     document.getElementById('order-preview').classList.add('hidden');
     document.getElementById('action-buttons').classList.add('hidden');
 
-    document.getElementById('auto-order-section').classList.remove('hidden');
-    
+    // Check for today's log for the selected category
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const hasTodayLog = inventoryLogs.some(log => log.category === category && log.timestamp.startsWith(todayStr));
+    const warningEl = document.getElementById('today-inventory-warning');
+
+    if (!hasTodayLog) {
+        warningEl.textContent = `注意：今日尚無「${category}」的盤點紀錄，叫貨單可能非最新狀態。`;
+        warningEl.classList.remove('hidden');
+    } else {
+        warningEl.classList.add('hidden');
+    }
+
     const latestLog = inventoryLogs.find(log => log.category === category);
     if(latestLog) {
         document.getElementById('order-history-select').value = latestLog.logId;
@@ -573,13 +581,8 @@ function handleOrderTabClick(category) {
     }
 }
 
-function checkTodayLog() {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const hasTodayLog = inventoryLogs.some(log => log.timestamp.startsWith(todayStr));
-    const warningEl = document.getElementById('no-today-log-warning');
-    if (!hasTodayLog) warningEl.classList.remove('hidden');
-    else warningEl.classList.add('hidden');
-}
+// *** REMOVED: The old checkTodayLog function is no longer needed as the logic is now in handleOrderTabClick ***
+// function checkTodayLog() { ... }
 
 async function generateOrderList(logId) {
     if (!logId) {
