@@ -42,6 +42,14 @@
             background-color: #f8fafc;
             color: #1e293b;
         }
+        /* Holiday Mode Toggle Style */
+        #holiday-mode-toggle:checked ~ .dot {
+            transform: translateX(100%);
+            background-color: #38bdf8;
+        }
+        #holiday-mode-toggle:checked ~ .block {
+            background-color: #0c4a6e;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -61,6 +69,19 @@
             <div class="tabs flex space-x-2 p-1 bg-slate-900/50 rounded-full">
                 <button class="tab-link flex-1 py-2 px-4 text-center text-slate-300 rounded-full transition-all duration-300 active" data-category="央廚">央廚</button>
                 <button class="tab-link flex-1 py-2 px-4 text-center text-slate-300 rounded-full transition-all duration-300" data-category="海鮮廠商">海鮮廠商</button>
+            </div>
+
+            <div class="flex items-center justify-center py-2">
+                <label for="holiday-mode-toggle" class="flex items-center cursor-pointer">
+                    <div class="relative">
+                        <input type="checkbox" id="holiday-mode-toggle" class="sr-only">
+                        <div class="block bg-slate-700 w-14 h-8 rounded-full"></div>
+                        <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                    </div>
+                    <div class="ml-3 text-slate-200 font-medium">
+                        長假模式
+                    </div>
+                </label>
             </div>
 
              <div>

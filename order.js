@@ -21,6 +21,14 @@ async function initOrderPage() {
         document.getElementById('order-history-select').addEventListener('change', (e) => {
             generateOrderList(e.target.value);
         });
+        
+        // Add event listener for the holiday mode toggle
+        document.getElementById('holiday-mode-toggle').addEventListener('change', () => {
+            const selectedLogId = document.getElementById('order-history-select').value;
+            if (selectedLogId) {
+                generateOrderList(selectedLogId);
+            }
+        });
 
         const urlParams = new URLSearchParams(window.location.search);
         const logId = urlParams.get('logId');
@@ -99,16 +107,19 @@ async function generateOrderList(logId) {
     const container = document.getElementById('order-list-container');
     container.innerHTML = '';
 
+    const isHolidayMode = document.getElementById('holiday-mode-toggle').checked;
     const itemsToOrder = [];
     const categoryItems = allItems.filter(item => item.Category === log.category);
     const logItemsMap = new Map(log.items.map(item => [item.itemId, item.quantity]));
 
     categoryItems.forEach(itemInfo => {
-        // Skip items that were not in the log or don't have a minimum stock set
-        if (!logItemsMap.has(itemInfo.ItemID) || !itemInfo.MinStock_Normal) return;
+        const minStockKey = isHolidayMode ? 'MinStock_Holiday' : 'MinStock_Normal';
+        
+        // Skip items that were not in the log or don't have a minimum stock set for the current mode
+        if (!logItemsMap.has(itemInfo.ItemID) || !itemInfo[minStockKey]) return;
 
         const quantity = logItemsMap.get(itemInfo.ItemID);
-        const minStock = itemInfo.MinStock_Normal; 
+        const minStock = itemInfo[minStockKey]; 
         const packageFactor = itemInfo.PackageFactor || 1;
         
         const needed = minStock - quantity;
