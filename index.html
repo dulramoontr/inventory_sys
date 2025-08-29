@@ -3,119 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory System</title>
-    
+    <title>庫存管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <style>
-        body { 
+        body {
             font-family: 'Noto Sans TC', sans-serif;
-            background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+            background-color: #0d1a2e;
+            background-image:
+                radial-gradient(ellipse at 10% 20%, rgba(66, 153, 225, 0.25) 0%, transparent 70%),
+                radial-gradient(ellipse at 90% 30%, rgba(213, 63, 140, 0.2) 0%, transparent 70%),
+                radial-gradient(ellipse at 70% 85%, rgba(128, 90, 213, 0.25) 0%, transparent 70%);
+            background-attachment: fixed;
+            color: #E0E0E0;
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.7);
+
+        .icon-container {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        .icon-container:hover {
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.3);
         }
-        
-        .loader {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background-color: rgba(100, 116, 139, 0.3);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+        .icon-container .material-symbols-outlined {
+            font-size: 56px;
+            font-variation-settings: 'FILL' 1;
+            color: white;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            position: relative;
+            z-index: 2;
         }
-        .loader::after {
+        .icon-container::before {
             content: '';
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 50px;
-            height: 50px;
+            width: 150%;
+            height: 150%;
             border-radius: 50%;
-            border: 5px solid rgba(255, 255, 255, 0.4);
-            border-top-color: #ffffff;
-            animation: spin 1s linear infinite;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            animation: rotate 12s linear infinite;
         }
-        @keyframes spin {
+
+        /* Gradient Colors */
+        .icon-inventory { background: rgba(255, 197, 71, 0.1); }
+        .icon-inventory::before { background: linear-gradient(45deg, #ffc547, #ff5733, #f72585); }
+        
+        .icon-order { background: rgba(247, 37, 133, 0.1); }
+        .icon-order::before { background: linear-gradient(45deg, #ff8c42, #ff3c5f, #c724b1); }
+        
+        .icon-veg { background: rgba(56, 189, 107, 0.1); }
+        .icon-veg::before { background: linear-gradient(45deg, #38ef7d, #11998e, #0072ff); }
+        
+        .icon-settings { background: rgba(66, 153, 225, 0.1); }
+        .icon-settings::before { background: linear-gradient(45deg, #42a5f5, #5c6bc0, #8e24aa); }
+
+        @keyframes rotate {
             0% { transform: translate(-50%, -50%) rotate(0deg); }
             100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
-        .hidden { display: none !important; }
     </style>
 </head>
-<body class="min-h-screen">
-    <div class="container mx-auto max-w-2xl p-4 sm:p-6">
-        
-        <header class="text-center my-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-slate-700 tracking-wider">庫存盤點叫貨系統</h1>
-        </header>
-        
-        <main class="space-y-6">
-            <a href="inventory.html" class="group block p-6 sm:p-8 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 glass-card">
-                <div class="flex items-center space-x-4">
-                    <div class="p-3 bg-blue-500 rounded-xl text-white shadow-md">
-                        <span class="material-symbols-outlined">inventory_2</span>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">庫存盤點</h2>
-                        <p class="text-slate-600">開始央廚、海鮮庫存清點作業</p>
-                    </div>
-                </div>
-            </a>
-            
-            <a href="order.html" class="group block p-6 sm:p-8 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 glass-card">
-                <div class="flex items-center space-x-4">
-                    <div class="p-3 bg-green-500 rounded-xl text-white shadow-md">
-                        <span class="material-symbols-outlined">receipt_long</span>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">央廚/海鮮叫貨</h2>
-                        <p class="text-slate-600">依據盤點紀錄自動產生叫貨單</p>
-                    </div>
-                </div>
-            </a>
+<body class="min-h-screen flex items-center justify-center p-4">
 
-            <a href="veg-order.html" class="group block p-6 sm:p-8 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 glass-card">
-                <div class="flex items-center space-x-4">
-                    <div class="p-3 bg-yellow-500 rounded-xl text-white shadow-md">
-                        <span class="material-symbols-outlined">shopping_basket</span>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">菜商叫貨</h2>
-                        <p class="text-slate-600">手動輸入菜商的叫貨項目</p>
-                    </div>
+    <div class="text-center">
+        <header class="mb-12">
+            <h1 class="text-4xl sm:text-5xl font-bold text-slate-100 tracking-wider">庫存管理系統</h1>
+            <p class="text-slate-400 mt-2">請選擇您要進行的操作</p>
+        </header>
+
+        <main class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+            <a href="inventory.html" class="flex flex-col items-center gap-4 group">
+                <div class="icon-container icon-inventory">
+                    <span class="material-symbols-outlined">inventory_2</span>
                 </div>
+                <span class="font-semibold text-slate-200 group-hover:text-sky-400 transition">央廚庫存</span>
             </a>
             
-            <a href="settings.html" class="group block p-6 sm:p-8 rounded-2xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 glass-card">
-                <div class="flex items-center space-x-4">
-                    <div class="p-3 bg-purple-500 rounded-xl text-white shadow-md">
-                        <span class="material-symbols-outlined">settings</span>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">參數設定</h2>
-                        <p class="text-slate-600">管理品項、廠商與系統參數</p>
-                    </div>
+            <a href="order.html" class="flex flex-col items-center gap-4 group">
+                <div class="icon-container icon-order">
+                    <span class="material-symbols-outlined">local_shipping</span>
                 </div>
+                <span class="font-semibold text-slate-200 group-hover:text-sky-400 transition">央廚/海鮮叫貨</span>
+            </a>
+            
+            <a href="veg-order.html" class="flex flex-col items-center gap-4 group">
+                <div class="icon-container icon-veg">
+                     <span class="material-symbols-outlined">grass</span>
+                </div>
+                <span class="font-semibold text-slate-200 group-hover:text-sky-400 transition">菜商叫貨</span>
+            </a>
+            
+            <a href="settings.html" class="flex flex-col items-center gap-4 group">
+                <div class="icon-container icon-settings">
+                    <span class="material-symbols-outlined">settings</span>
+                </div>
+                <span class="font-semibold text-slate-200 group-hover:text-sky-400 transition">參數設定</span>
             </a>
         </main>
-        
-        <footer class="text-center mt-12">
-            <p class="text-slate-500">Ver 5.0 - Refactored</p>
-        </footer>
     </div>
-    <div id="loader" class="loader hidden"></div>
-    <script src="script.js"></script>
+
 </body>
 </html>

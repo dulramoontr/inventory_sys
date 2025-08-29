@@ -4,84 +4,112 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>菜商叫貨 - 庫存系統</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     
     <style>
-        body { font-family: 'Noto Sans TC', sans-serif; background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
-        .glass-card { background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.7); }
-        
-        .loader {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background-color: rgba(100, 116, 139, 0.3);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0d1a2e;
+            background-image:
+                radial-gradient(ellipse at 10% 20%, rgba(66, 153, 225, 0.25) 0%, transparent 70%),
+                radial-gradient(ellipse at 90% 30%, rgba(213, 63, 140, 0.2) 0%, transparent 70%),
+                radial-gradient(ellipse at 70% 85%, rgba(128, 90, 213, 0.25) 0%, transparent 70%);
+            background-attachment: fixed;
+            color: #E0E0E0;
         }
-        .loader::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: 5px solid rgba(255, 255, 255, 0.4);
-            border-top-color: #ffffff;
-            animation: spin 1s linear infinite;
+        .glass-card { 
+            background: rgba(30, 41, 59, 0.5); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
         }
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
+        .loader { position: fixed; inset: 0; z-index: 9999; background-color: rgba(10, 20, 35, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        .loader::after { content: ''; position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; border-radius: 50%; border: 5px solid rgba(255, 255, 255, 0.2); border-top-color: #60a5fa; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
         .hidden { display: none !important; }
+        
+        input[type="number"] {
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 1px solid #334155;
+            color: #e2e8f0;
+        }
+        input[type="number"]:focus {
+            box-shadow: none;
+            border-color: #38bdf8;
+            background-color: #0f172a;
+        }
+        
+        #order-preview {
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
     </style>
 </head>
 <body class="min-h-screen">
     <div class="container mx-auto max-w-3xl p-4 sm:p-6">
 
         <header class="flex items-center justify-center relative my-8">
-            <a href="index.html" class="absolute left-0 text-slate-600 hover:text-blue-500 transition">
+            <a href="index.html" class="absolute left-0 text-slate-300 hover:text-sky-400 transition" title="回到首頁">
                 <span class="material-symbols-outlined text-3xl">arrow_circle_left</span>
             </a>
-            <h1 class="text-2xl sm:text-3xl font-bold text-slate-700 tracking-wider">菜商叫貨</h1>
+            <h1 id="order-main-title" class="text-2xl sm:text-3xl font-bold text-slate-100 tracking-wider">菜商叫貨</h1>
+             <a href="index.html" class="absolute right-0 text-slate-300 hover:text-sky-400 transition" title="回到首頁">
+                <span class="material-symbols-outlined text-3xl">home</span>
+            </a>
         </header>
 
-        <main class="p-6 rounded-2xl shadow-lg glass-card space-y-6">
-            <div id="manual-order-section" class="space-y-3">
-                </div>
+        <main class="space-y-6">
+            <section id="manual-order-section" class="p-6 rounded-2xl shadow-lg glass-card space-y-3">
+                </section>
+            
+            <section id="order-preview" class="p-6 rounded-lg shadow-inner hidden">
+                <h2 id="order-subtitle" class="text-xl font-bold text-center text-slate-800"></h2>
+                <p id="order-date" class="text-center text-sm text-slate-500 mb-4"></p>
+                <div id="order-list-container" class="mt-4 text-slate-700"></div>
+            </section>
 
-            <div id="order-preview" class="hidden p-6 bg-white rounded-xl border border-slate-200">
-                <div class="text-center">
-                    <h2 id="order-main-title" class="text-2xl font-bold text-slate-800">八方悅五股工商店</h2>
-                    <h3 id="order-subtitle" class="text-xl text-slate-700 mt-1"></h3>
-                    <p id="order-date" class="text-slate-500 mt-2"></p>
-                </div>
-                <hr class="my-4 border-slate-300">
-                <div id="order-list-container" class="text-base">
-                </div>
-            </div>
-
-            <div id="action-buttons" class="hidden space-y-3">
-                <button id="copy-text-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-500 hover:bg-slate-600 text-white font-bold rounded-lg shadow-md transition-all">
-                    <span class="material-symbols-outlined">content_copy</span>複製清單文字
+            <section id="action-buttons" class="grid grid-cols-1 sm:grid-cols-3 gap-3 hidden">
+                <button id="copy-text-btn" class="action-btn">
+                    <span class="material-symbols-outlined">content_copy</span>複製文字
                 </button>
-                <button id="share-line-text-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-md transition-all">
-                    <span class="material-symbols-outlined">share</span>LINE 分享 (文字)
+                <button id="share-line-text-btn" class="action-btn">
+                    <span class="material-symbols-outlined">sms</span>LINE 文字
                 </button>
-                <button id="share-line-img-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all">
-                    <span class="material-symbols-outlined">photo_camera</span>LINE 分享 (圖檔)
+                <button id="share-line-img-btn" class="action-btn">
+                    <span class="material-symbols-outlined">image</span>LINE 圖片
                 </button>
-            </div>
+            </section>
         </main>
+        
     </div>
     <div id="loader" class="loader hidden"></div>
     <script src="script.js"></script>
+     <style>
+      .action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background-color: rgba(30, 41, 59, 0.8);
+        color: #cbd5e1;
+        font-weight: bold;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease-in-out;
+        border: 1px solid #334155;
+      }
+      .action-btn:hover {
+        background-color: #1e293b;
+        color: white;
+        border-color: #38bdf8;
+      }
+    </style>
 </body>
 </html>
