@@ -63,11 +63,16 @@ function setupMainTabs() {
     const tabs = document.querySelectorAll('.main-tab-link');
     const contents = document.querySelectorAll('.main-tab-content');
     
-    // Set default tab view
-    document.getElementById('settings-tab-code').classList.remove('hidden');
+    // Set default tab view more safely
     const defaultTabButton = document.querySelector('.main-tab-link[data-tab="settings-tab-code"]');
-    if (defaultTabButton) {
+    const defaultTabContent = document.getElementById('settings-tab-code');
+    
+    if (defaultTabButton && defaultTabContent) {
+        // Hide all content first
+        contents.forEach(content => content.classList.add('hidden'));
+        // Then show the default one
         defaultTabButton.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
+        defaultTabContent.classList.remove('hidden');
     }
     
     tabs.forEach(tab => {
