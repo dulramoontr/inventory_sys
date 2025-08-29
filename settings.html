@@ -15,50 +15,18 @@
     <style>
         body { font-family: 'Noto Sans TC', sans-serif; background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
         .glass-card { background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.7); }
-        
-        .loader {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background-color: rgba(100, 116, 139, 0.3);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-        }
-        .loader::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: 5px solid rgba(255, 255, 255, 0.4);
-            border-top-color: #ffffff;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
+        .loader { position: fixed; inset: 0; z-index: 9999; background-color: rgba(100, 116, 139, 0.3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        .loader::after { content: ''; position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; border-radius: 50%; border: 5px solid rgba(255, 255, 255, 0.4); border-top-color: #ffffff; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
         .hidden { display: none !important; }
         .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
-        
-        .drag-handle {
-            cursor: grab;
-            padding: 0 8px;
-            color: #94a3b8;
-        }
-        .drag-handle:hover {
-            color: #475569;
-        }
-        .sortable-ghost {
-            background: rgba(71, 85, 105, 0.1);
-            border-radius: 0.5rem;
-        }
+        .drag-handle { cursor: grab; padding: 0 8px; color: #94a3b8; }
+        .drag-handle:hover { color: #475569; }
+        .sortable-ghost { background: rgba(71, 85, 105, 0.1); border-radius: 0.5rem; }
     </style>
 </head>
 <body class="min-h-screen">
-    <div class="container mx-auto max-w-3xl p-4 sm:p-6">
+    <div class="container mx-auto max-w-4xl p-4 sm:p-6">
 
         <header class="flex items-center justify-center relative my-8">
             <a href="index.html" class="absolute left-0 text-slate-600 hover:text-blue-500 transition">
@@ -67,40 +35,62 @@
             <h1 class="text-2xl sm:text-3xl font-bold text-slate-700 tracking-wider">參數設定</h1>
         </header>
 
-        <main id="settings-content" class="hidden p-6 rounded-2xl shadow-lg glass-card space-y-8">
-            
-            <div class="settings-section">
-                <h3 class="text-lg font-bold text-slate-700 mb-2">存取碼修改</h3>
-                <div class="space-y-3">
+        <main id="settings-content" class="hidden">
+            <div class="main-tabs flex space-x-2 p-1 bg-blue-100 rounded-full mb-6">
+                <button class="main-tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="settings-tab-code">存取碼修改</button>
+                <button class="main-tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="settings-tab-logs">盤點紀錄管理</button>
+                <button class="main-tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="settings-tab-items">品項設定</button>
+            </div>
+
+            <div id="settings-tab-code" class="main-tab-content p-6 rounded-2xl shadow-lg glass-card">
+                <h3 class="text-xl font-bold text-slate-700 mb-4">存取碼修改</h3>
+                <div class="space-y-4 max-w-md mx-auto">
                     <input type="password" id="old-access-code" placeholder="舊存取碼" class="w-full p-3 bg-white/80 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                     <input type="password" id="new-access-code" placeholder="新存取碼" class="w-full p-3 bg-white/80 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                    <button id="save-code-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all">
+                        <span class="material-symbols-outlined">save</span>儲存存取碼
+                    </button>
                 </div>
             </div>
 
-            <div class="settings-section">
-                <h3 class="text-lg font-bold text-slate-700 mb-2">庫存盤點紀錄管理</h3>
-                <div id="inventory-log-list" class="space-y-2 max-h-72 overflow-y-auto bg-white/40 p-3 rounded-lg">
+            <div id="settings-tab-logs" class="main-tab-content p-6 rounded-2xl shadow-lg glass-card">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <h3 class="text-xl font-bold text-slate-700">庫存盤點紀錄管理</h3>
+                    <button id="delete-logs-btn" class="mt-2 sm:mt-0 w-full sm:w-auto flex items-center justify-center gap-2 py-2 px-4 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition disabled:bg-slate-400 disabled:cursor-not-allowed">
+                        <span class="material-symbols-outlined">delete</span>刪除選取項目
+                    </button>
+                </div>
+                <div class="bg-white/40 rounded-lg overflow-hidden">
+                    <div class="flex items-center justify-between p-3 bg-slate-100/50 border-b border-slate-200">
+                        <label class="flex items-center gap-2 font-semibold text-slate-600">
+                            <input type="checkbox" id="select-all-logs" class="rounded">
+                            <span>全選</span>
+                        </label>
+                        <span class="font-semibold text-slate-600">紀錄資訊</span>
                     </div>
+                    <div id="inventory-log-list" class="space-y-1 p-2 max-h-[50vh] overflow-y-auto">
+                        </div>
+                </div>
             </div>
 
-            <div class="settings-section">
-                 <h3 class="text-lg font-bold text-slate-700 mb-2">品項管理</h3>
-                <div class="tabs flex space-x-2 p-1 bg-blue-100 rounded-full">
-                    <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300 active" data-tab="tab-ck">央廚庫存</button>
-                    <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-sf">海鮮廠商</button>
-                    <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-vg">菜商叫貨</button>
+            <div id="settings-tab-items" class="main-tab-content p-6 rounded-2xl shadow-lg glass-card">
+                 <h3 class="text-xl font-bold text-slate-700 mb-4">品項管理</h3>
+                <div class="sub-tabs flex space-x-2 p-1 bg-blue-100 rounded-full">
+                    <button class="sub-tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="item-tab-ck">央廚庫存</button>
+                    <button class="sub-tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="item-tab-sf">海鮮廠商</button>
+                    <button class="sub-tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="item-tab-vg">菜商叫貨</button>
                 </div>
 
-                <div id="tab-ck" class="tab-content active min-h-[100px] space-y-2 mt-4"></div>
-                <div id="tab-sf" class="tab-content hidden min-h-[100px] space-y-2 mt-4"></div>
-                <div id="tab-vg" class="tab-content hidden min-h-[100px] space-y-2 mt-4"></div>
+                <div id="item-tab-ck" class="sub-tab-content space-y-2 mt-4"></div>
+                <div id="item-tab-sf" class="sub-tab-content space-y-2 mt-4"></div>
+                <div id="item-tab-vg" class="sub-tab-content space-y-2 mt-4"></div>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
                      <button id="add-item-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/80 text-blue-600 font-bold rounded-lg shadow-md hover:bg-white transition-all">
                         <span class="material-symbols-outlined">add</span>新增品項
                     </button>
-                    <button id="save-settings-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all">
-                        <span class="material-symbols-outlined">save</span>儲存所有變更
+                    <button id="save-items-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all">
+                        <span class="material-symbols-outlined">save</span>儲存品項變更
                     </button>
                 </div>
             </div>
@@ -158,30 +148,7 @@
             </form>
         </div>
     </div>
-    <script src="script.js"></script>
-     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const tabs = document.querySelectorAll('.tabs .tab-link');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    // Handle tab content visibility
-                    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-                    const targetId = tab.dataset.tab;
-                    document.getElementById(targetId)?.classList.remove('hidden');
 
-                    // Handle tab active styles
-                    tabs.forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
-                    tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
-                });
-            });
-            // Initial active tab styling
-             const activeTab = document.querySelector('.tab-link.active');
-             if(activeTab) {
-                activeTab.classList.add('bg-white', 'shadow', 'text-blue-600', 'font-semibold');
-                const targetId = activeTab.dataset.tab;
-                document.getElementById(targetId)?.classList.remove('hidden');
-             }
-        });
-    </script>
-</body>
+    <script src="script.js"></script>
+    </body>
 </html>
