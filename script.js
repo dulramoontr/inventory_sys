@@ -7,7 +7,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbwZMCD8Sh3Vhx4dc0rpSUNT
 // --- Global State ---
 let allItems = [];
 let inventoryLogs = [];
-let currentItemCategory = '';
+let currentItemCategory = ''; 
 
 // --- Utility Functions ---
 const loader = document.getElementById('loader');
@@ -333,13 +333,16 @@ function openItemModal(itemId = null) {
     
     const commonFields = document.querySelector('.modal-fields-common');
     const vegFields = document.querySelector('.modal-fields-veg');
+    const subCategoryContainer = document.getElementById('modal-subcategory-container');
     const packageFactorField = document.getElementById('modal-package-factor').parentElement;
     const checkQuantityContainer = document.getElementById('modal-check-quantity-container');
 
+    // Reset visibility
     commonFields.style.display = 'block';
     vegFields.style.display = 'none';
     packageFactorField.style.display = 'block';
     checkQuantityContainer.style.display = 'block';
+    subCategoryContainer.style.display = 'none'; // Hide subcategory by default
 
     if (currentItemCategory === '菜商') {
         commonFields.style.display = 'none';
@@ -353,20 +356,30 @@ function openItemModal(itemId = null) {
         const item = allItems.find(i => i.ItemID === itemId);
         document.getElementById('modal-title').innerText = '編輯品項';
         document.getElementById('modal-item-id').value = item.ItemID;
-        document.getElementById('modal-item-name').value = item.ItemName;
-        document.getElementById('modal-item-desc').value = item.Description;
-        document.getElementById('modal-unit-inventory').value = item.Unit_Inventory || item.Unit;
-        document.getElementById('modal-unit-order').value = item.Unit_Order || '';
-        document.getElementById('modal-min-stock').value = item.MinStock_Normal;
-        document.getElementById('modal-min-stock-holiday').value = item.MinStock_Holiday;
-        document.getElementById('modal-default-stock').value = item.DefaultStock || '';
-        document.getElementById('modal-package-factor').value = item.PackageFactor;
-        document.getElementById('modal-is-required').checked = item.IsRequired;
-        document.getElementById('modal-check-quantity').checked = item.CheckQuantity;
-        document.getElementById('modal-subcategory').value = item.SubCategory || '-';
+
+        if (currentItemCategory === '菜商') {
+            document.getElementById('modal-item-name-veg').value = item.ItemName;
+            document.getElementById('modal-item-desc-veg').value = item.Description;
+            document.getElementById('modal-unit-order-veg').value = item.Unit_Order || '';
+            document.getElementById('modal-subcategory-veg').value = item.SubCategory || '蔬菜';
+        } else {
+            document.getElementById('modal-item-name').value = item.ItemName;
+            document.getElementById('modal-item-desc').value = item.Description;
+            document.getElementById('modal-unit-inventory').value = item.Unit_Inventory || item.Unit;
+            document.getElementById('modal-unit-order').value = item.Unit_Order || '';
+            document.getElementById('modal-min-stock').value = item.MinStock_Normal;
+            document.getElementById('modal-min-stock-holiday').value = item.MinStock_Holiday;
+            document.getElementById('modal-default-stock').value = item.DefaultStock || '';
+            document.getElementById('modal-package-factor').value = item.PackageFactor;
+            document.getElementById('modal-is-required').checked = item.IsRequired;
+            document.getElementById('modal-check-quantity').checked = item.CheckQuantity;
+        }
     } else {
         document.getElementById('modal-title').innerText = '新增品項';
         document.getElementById('modal-item-id').value = `ITEM_${Date.now()}`;
+        if(currentItemCategory === '菜商') {
+            document.getElementById('modal-subcategory-veg').value = '蔬菜';
+        }
     }
     modal.classList.remove('hidden');
 }
@@ -380,33 +393,43 @@ function handleFormSubmit(event) {
     const itemId = document.getElementById('modal-item-id').value;
     const existingItemIndex = allItems.findIndex(i => i.ItemID === itemId);
     
-    const defaultStockValue = document.getElementById('modal-default-stock').value;
-    const unitInventory = document.getElementById('modal-unit-inventory').value;
-    const unitOrder = document.getElementById('modal-unit-order').value;
+    let newItem;
 
-    const newItem = {
-        ItemID: itemId,
-        ItemName: document.getElementById('modal-item-name').value,
-        Description: document.getElementById('modal-item-desc').value,
-        Category: currentItemCategory,
-        SubCategory: document.getElementById('modal-subcategory').value,
-        Unit_Inventory: unitInventory,
-        Unit_Order: unitOrder || unitInventory,
-        IsRequired: document.getElementById('modal-is-required').checked,
-        MinStock_Normal: parseFloat(document.getElementById('modal-min-stock').value) || 0,
-        MinStock_Holiday: parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0,
-        DefaultStock: defaultStockValue ? parseFloat(defaultStockValue) : '',
-        PackageFactor: currentItemCategory === '海鮮廠商' ? 1 : (document.getElementById('modal-package-factor').value || 1),
-        CheckQuantity: document.getElementById('modal-check-quantity').checked
-    };
-    
     if (currentItemCategory === '菜商') {
-        newItem.MinStock_Normal = '';
-        newItem.MinStock_Holiday = '';
-        newItem.PackageFactor = '';
-        newItem.IsRequired = false;
-        newItem.DefaultStock = '';
-        newItem.CheckQuantity = false;
+        newItem = {
+            ItemID: itemId,
+            ItemName: document.getElementById('modal-item-name-veg').value,
+            Description: document.getElementById('modal-item-desc-veg').value,
+            Category: currentItemCategory,
+            SubCategory: document.getElementById('modal-subcategory-veg').value,
+            Unit_Inventory: document.getElementById('modal-unit-order-veg').value,
+            Unit_Order: document.getElementById('modal-unit-order-veg').value,
+            IsRequired: false,
+            MinStock_Normal: '',
+            MinStock_Holiday: '',
+            DefaultStock: '',
+            PackageFactor: '',
+            CheckQuantity: false,
+        };
+    } else {
+        const defaultStockValue = document.getElementById('modal-default-stock').value;
+        const unitInventory = document.getElementById('modal-unit-inventory').value;
+        const unitOrder = document.getElementById('modal-unit-order').value;
+        newItem = {
+            ItemID: itemId,
+            ItemName: document.getElementById('modal-item-name').value,
+            Description: document.getElementById('modal-item-desc').value,
+            Category: currentItemCategory,
+            SubCategory: '-', // Default value
+            Unit_Inventory: unitInventory,
+            Unit_Order: unitOrder || unitInventory,
+            IsRequired: document.getElementById('modal-is-required').checked,
+            MinStock_Normal: parseFloat(document.getElementById('modal-min-stock').value) || 0,
+            MinStock_Holiday: parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0,
+            DefaultStock: defaultStockValue ? parseFloat(defaultStockValue) : '',
+            PackageFactor: currentItemCategory === '海鮮廠商' ? 1 : (document.getElementById('modal-package-factor').value || 1),
+            CheckQuantity: document.getElementById('modal-check-quantity').checked
+        };
     }
 
     if (existingItemIndex > -1) {
