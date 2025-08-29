@@ -26,175 +26,137 @@ function getFormattedDate(timestampStr) {
 function getFormattedDateTime(timestampStr) {
     const date = new Date(timestampStr);
     if (isNaN(date)) return '無效日期';
-    return date.toLocaleString('sv-SE'); // YYYY-MM-DD HH:MM:SS
+    return date.toLocaleString('sv-SE'); // YYYY-MM-DD HH:MM:SS format
 }
 
-// --- API Request ---
 async function apiRequest(method, payload) {
     showLoader();
     try {
-        let url = new URL(GAS_URL);
         const options = {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
-            mode: 'cors',
-            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         };
-
-        if (method === 'GET' && payload) {
-            Object.keys(payload).forEach(key => url.searchParams.append(key, payload[key]));
-        } else if (method === 'POST') {
+        if (method === 'POST') {
             options.body = JSON.stringify(payload);
+        }
+        
+        let url = GAS_URL;
+        if (method === 'GET') {
+           url += `?action=${payload.action}`;
+           if(payload.logId) url += `&logId=${payload.logId}`;
         }
 
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) throw new Error('網路回應錯誤，請檢查您的網路連線。');
         
         const result = await response.json();
-        if (!result.success) {
-            console.error('API Error:', result.message);
-            alert(`API 請求失敗: ${result.message}`);
-        }
+        if (!result.success) throw new Error(result.message || 'API 請求失敗，請稍後再試。');
+        
         return result;
-
     } catch (error) {
-        console.error('Fetch/API Error:', error);
-        alert(`網路或伺服器錯誤: ${error.message}`);
-        return { success: false, message: error.message };
+        console.error('API Error:', error);
+        alert(`發生錯誤: ${error.message}`);
+        return null;
     } finally {
         hideLoader();
     }
 }
 
-// --- UI Components ---
-function populateHistoryDropdown(logs, selectId, filterByCategory = null) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
-    
-    let filteredLogs = logs;
-    if (filterByCategory) {
-        filteredLogs = logs.filter(log => log.category === filterByCategory);
-    }
-    
-    select.innerHTML = `<option value="">-- 從歷史紀錄載入 --</option>`;
-    filteredLogs.forEach(log => {
-        const option = document.createElement('option');
-        option.value = log.logId;
-        option.textContent = getFormattedDateTime(log.timestamp);
-        select.appendChild(option);
-    });
-}
-
+// --- Floating Action Button (FAB) Logic ---
 function setupFAB(containerId) {
     const fabContainer = document.getElementById(containerId);
     if (!fabContainer) return;
 
-    const fabButton = fabContainer.querySelector('.fab');
-    const fabActions = fabContainer.querySelector('.fab-actions');
+    if (document.body.scrollHeight > window.innerHeight) {
+        fabContainer.classList.add('visible');
+    }
 
-    fabButton.addEventListener('click', () => {
-        fabActions.classList.toggle('hidden');
-        fabButton.classList.toggle('active');
-    });
-
-    // Hide actions if clicked outside
-    document.addEventListener('click', (event) => {
-        if (!fabContainer.contains(event.target)) {
-            fabActions.classList.add('hidden');
-            fabButton.classList.remove('active');
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 100) {
+            fabContainer.classList.add('visible');
+        } else {
+            fabContainer.classList.remove('visible');
         }
+    }, { passive: true });
+}
+
+function populateHistoryDropdown(logs, selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = '<option value="">請選擇...</option>';
+    logs.forEach(log => {
+        const option = document.createElement('option');
+        option.value = log.logId;
+        option.textContent = `${log.category} - ${getFormattedDateTime(log.timestamp)}`;
+        select.appendChild(option);
     });
 }
 
-// --- Action Functions ---
-function copyOrderText() {
-    const preview = document.getElementById('order-preview');
-    if (!preview) return;
+function getFullOrderText() {
+    const mainTitleEl = document.getElementById('order-main-title');
+    const subtitleEl = document.getElementById('order-subtitle');
+    const dateEl = document.getElementById('order-date');
+    const listContainer = document.getElementById('order-list-container');
 
-    const titleElement = document.getElementById('order-subtitle');
-    const dateElement = document.getElementById('order-date');
-    const listElement = document.getElementById('order-list-container');
+    const mainTitle = mainTitleEl ? mainTitleEl.textContent : '';
+    const subtitle = subtitleEl ? subtitleEl.textContent : '叫貨單';
+    const date = dateEl ? dateEl.textContent : '';
     
-    const title = titleElement ? titleElement.textContent : '';
-    const date = dateElement ? dateElement.textContent : '';
-    let itemsText = listElement ? listElement.innerText : '';
+    let listContent = '';
+    const rows = listContainer.querySelectorAll('.flex.justify-between');
 
-    const fullText = `${title}\n${date}\n-------------------\n${itemsText}`;
+    if (listContainer.querySelector('.whitespace-pre-wrap')) {
+        listContent = listContainer.innerText;
+    } else if (rows.length > 0) {
+        let content = [];
+        rows.forEach(row => {
+            const left = row.children[0]?.textContent || '';
+            const right = row.children[1]?.textContent || '';
+            content.push(`${left}\t${right}`);
+        });
+        listContent = content.join('\n');
+    } else {
+        listContent = listContainer.innerText;
+    }
 
-    navigator.clipboard.writeText(fullText).then(() => {
-        alert('叫貨單文字已複製！');
-    }).catch(err => {
-        alert('複製失敗！');
-        console.error('Could not copy text: ', err);
+    return `${mainTitle} ${subtitle}\n${date}\n\n${listContent.trim()}`;
+}
+
+
+function copyOrderText() {
+    const textToCopy = getFullOrderText();
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        alert('清單文字已複製！');
+    }, (err) => {
+        alert('複製失敗: ', err);
     });
 }
 
-async function shareToLineText() {
-    const preview = document.getElementById('order-preview');
-    if (!preview) {
-        alert('沒有可分享的內容。');
-        return;
-    }
-
-    const titleElement = document.getElementById('order-subtitle');
-    const dateElement = document.getElementById('order-date');
-    const listElement = document.getElementById('order-list-container');
-
-    const title = titleElement ? titleElement.textContent : '叫貨單';
-    const date = dateElement ? dateElement.textContent : '';
-    let itemsText = listElement ? listElement.innerText.replace(/\t/g, ' ') : ''; 
-
-    const fullText = `${title}\n${date}\n-------------------\n${itemsText}`;
-
-    const shareData = {
-        title: title,
-        text: fullText,
-    };
-
-    // 檢查瀏覽器是否支援 Web Share API
-    if (navigator.share) {
-        try {
-            await navigator.share(shareData);
-        } catch (err) {
-            // 如果使用者取消分享，則不顯示錯誤訊息
-            if (err.name !== 'AbortError') {
-                console.error('Share failed:', err);
-            }
-        }
-    } else {
-        // 如果不支援，則使用傳統的 LINE URL Scheme 作為備用方案
-        const fallbackUrl = `https://line.me/R/msg/text/?${encodeURIComponent(fullText)}`;
-        window.open(fallbackUrl, '_blank');
-    }
+function shareToLineText() {
+    const text = getFullOrderText();
+    if (!text) return;
+    const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+    window.open(lineUrl, '_blank');
 }
-
-
-// Fallback function for browsers not supporting sharing files
-function fallbackShare(canvas, title) {
-    const link = document.createElement('a');
-    link.download = `${title}.png`;
-    link.href = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-    link.click();
-}
-
 
 async function shareToLineImage() {
     showLoader();
-    const element = document.getElementById('order-preview');
-    if (!element) {
-        hideLoader();
-        return;
-    }
-    const title = document.getElementById('order-subtitle')?.textContent || '叫貨單';
+    const orderPreview = document.getElementById('order-preview');
+    const titleEl = document.getElementById('order-subtitle');
+    const title = titleEl ? titleEl.textContent : '叫貨單';
 
     try {
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff'
-        });
+        const canvas = await html2canvas(orderPreview, { scale: 2, backgroundColor: '#f8fafc' });
+        const fallbackShare = (canvas, title) => {
+            const image = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = image;
+            link.download = `${title}.png`;
+            link.click();
+            alert("您的瀏覽器不支援直接分享。圖片已為您下載，請手動分享至 LINE。");
+        };
 
-        if (navigator.share) {
+        if (navigator.share && navigator.canShare) {
             canvas.toBlob(async (blob) => {
                 const file = new File([blob], `${title}.png`, { type: blob.type });
                 const shareData = { files: [file], title: title, text: `你好，這是今天的${title}。` };
@@ -240,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
             initVegOrderPage();
             break;
         case 'index.html':
-            // No init for index page
+            // No initialization needed for index page
             break;
     }
 });
