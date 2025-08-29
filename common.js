@@ -132,11 +132,31 @@ function copyOrderText() {
     });
 }
 
-function shareToLineText() {
-    const text = getFullOrderText();
-    if (!text) return;
-    const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
-    window.open(lineUrl, '_blank');
+async function shareToLineText() {
+    const textToCopy = getFullOrderText();
+    if (!textToCopy) return;
+
+    const subtitleEl = document.getElementById('order-subtitle');
+    const title = subtitleEl ? subtitleEl.textContent : '叫貨單';
+
+    // Fallback function for browsers that don't support Web Share API
+    const fallbackShare = () => {
+        const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(textToCopy)}`;
+        window.open(lineUrl, '_blank');
+    };
+
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: title,
+                text: textToCopy,
+            });
+        } catch (error) {
+            console.log('分享被取消或失敗:', error);
+        }
+    } else {
+        fallbackShare();
+    }
 }
 
 async function shareToLineImage() {
