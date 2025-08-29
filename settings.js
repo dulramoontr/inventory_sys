@@ -7,7 +7,7 @@ async function initSettingsPage() {
         const verified = sessionStorage.getItem('accessVerified');
         if (!verified) {
             const code = prompt('請輸入存取碼:');
-            if (!code) {
+            if (code === null) { // User clicked cancel
                  window.location.href = 'index.html';
                  return;
             }
@@ -63,11 +63,11 @@ function setupMainTabs() {
     const tabs = document.querySelectorAll('.main-tab-link');
     const contents = document.querySelectorAll('.main-tab-content');
     
-    // Set default tab
+    // Set default tab view
     document.getElementById('settings-tab-code').classList.remove('hidden');
-    const defaultTab = document.querySelector('.main-tab-link[data-tab="settings-tab-code"]');
-    if (defaultTab) {
-        defaultTab.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
+    const defaultTabButton = document.querySelector('.main-tab-link[data-tab="settings-tab-code"]');
+    if (defaultTabButton) {
+        defaultTabButton.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
     }
     
     tabs.forEach(tab => {
@@ -141,7 +141,7 @@ async function handleDeleteSelectedLogs() {
     }
 
     const code = prompt('請輸入存取碼以確認刪除操作：');
-    if (!code) {
+    if (code === null) {
         alert('已取消刪除操作。');
         return;
     }
