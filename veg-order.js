@@ -4,7 +4,6 @@
 async function initVegOrderPage() {
     showLoader();
     try {
-        setupFAB('fab-container-veg'); // Initialize floating button
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
         if (itemsResult) {
              allItems = itemsResult.data;
@@ -15,7 +14,7 @@ async function initVegOrderPage() {
         renderManualOrderForm();
 
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
-        document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
+        document.getElementById('share-line-text-btn').addEventListener('click', shareVegOrderToLine);
         document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
 
     } finally {
@@ -105,9 +104,87 @@ function generateManualOrder() {
     const actionButtons = document.getElementById('action-buttons');
     actionButtons.classList.remove('hidden');
 
-    // --- UI 優化：滾動到頁面底部 ---
-    // 使用 setTimeout 確保 DOM 更新後再執行滾動
     setTimeout(() => {
         actionButtons.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
+}
+
+/**
+ * 產生菜商叫貨單的純文字內容，用於複製和分享。
+ */
+function generateVegOrderText() {
+    const itemsToOrder = [];
+    document.querySelectorAll('#manual-order-section .order-quantity').forEach(input => {
+        const quantity = input.value;
+        if (quantity && parseFloat(quantity) > 0) {
+            itemsToOrder.push({
+                name: input.dataset.itemName,
+                qty: quantity,
+                unit: input.dataset.unit,
+                subcategory: input.dataset.subcategory
+            });
+        }
+    });
+
+    if (itemsToOrder.length === 0) {
+        return '尚未輸入任何叫貨數量。';
+    }
+    
+    const groupedItems = itemsToOrder.reduce((acc, item) => {
+        const key = item.subcategory;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+    }, {});
+
+    let orderText = `${getFormattedDate(new Date().toISOString())} 菜商叫貨單\n-------------------\n`;
+    const categoryOrder = ['蔬菜', '火鍋料', '其他'];
+     const sortedKeys = Object.keys(groupedItems).sort((a, b) => {
+        const indexA = categoryOrder.indexOf(a);
+        const indexB = categoryOrder.indexOf(b);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+    });
+
+    for (const subcategory of sortedKeys) {
+        orderText += `\n【${subcategory}】\n`;
+        groupedItems[subcategory].forEach(item => {
+            orderText += `${item.name} ${item.qty}${item.unit}\n`;
+        });
+    }
+    return orderText.trim();
+}
+
+/**
+ * 分享菜商叫貨單到 LINE 或其他應用程式
+ */
+async function shareVegOrderToLine() {
+    const textToShare = generateVegOrderText();
+    
+    if (textToShare === '尚未輸入任何叫貨數量。') {
+        alert(textToShare);
+        return;
+    }
+
+    const shareData = {
+        title: '菜商叫貨單',
+        text: textToShare,
+    };
+
+    // 檢查瀏覽器是否支援 Web Share API
+    if (navigator.share) {
+        try {
+            await navigator.share(shareData);
+        } catch (err) {
+            // 如果使用者取消分享，則不顯示錯誤訊息
+            if (err.name !== 'AbortError') {
+                console.error('Share failed:', err);
+            }
+        }
+    } else {
+        // 如果不支援，則使用傳統的 LINE URL Scheme 作為備用方案
+        const fallbackUrl = `https://line.me/R/msg/text/?${encodeURIComponent(textToShare)}`;
+        window.open(fallbackUrl, '_blank');
+    }
 }

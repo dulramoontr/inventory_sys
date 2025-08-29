@@ -1,181 +1,192 @@
 // =================================================================
-// CONFIGURATION
-// Google Apps Script URL
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwZMCD8Sh3Vhx4dc0rpSUNTjhOdt-Sj7r9zQKN9AsvhfkJSvdstZWU9_IK8_3GDKz4GNg/exec';
+// COMMON FUNCTIONS & VARIABLES
 // =================================================================
-
-// --- Global State ---
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby5tT6k0d2zLXq7syYPH--uQYV_7fDkhtCAGf-v1h_m_m_oztXw273zZsmJNN_xxnF_/exec';
 let allItems = [];
 let inventoryLogs = [];
-let currentItemCategory = ''; 
+let currentItemCategory = '央廚';
 
-// --- Utility Functions ---
-let loader; // **** CHANGED: Declare loader here, but don't assign it yet.
-const showLoader = () => loader && loader.classList.remove('hidden');
-const hideLoader = () => loader && loader.classList.add('hidden');
-
-function getFormattedDate(timestampStr) {
-    const date = new Date(timestampStr);
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const weekday = date.toLocaleDateString('zh-TW', { weekday: 'long' });
-    return `${year}年${month}月${day}日 ${weekday}`;
-}
-
-function getFormattedDateTime(timestampStr) {
-    const date = new Date(timestampStr);
-    if (isNaN(date)) return '無效日期';
-    return date.toLocaleString('sv-SE'); // YYYY-MM-DD HH:MM:SS format
-}
-
+// --- API Request ---
 async function apiRequest(method, payload) {
     showLoader();
     try {
         const options = {
             method: method,
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            headers: { 'Content-Type': 'text/plain;charset=utf-t' },
         };
-        if (method === 'POST') {
-            options.body = JSON.stringify(payload);
-        }
-        
         let url = GAS_URL;
+
         if (method === 'GET') {
-           url += `?action=${payload.action}`;
-           if(payload.logId) url += `&logId=${payload.logId}`;
+            const params = new URLSearchParams(payload);
+            url += `?${params.toString()}`;
+        } else { // POST
+            options.body = JSON.stringify(payload);
         }
 
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error('網路回應錯誤，請檢查您的網路連線。');
-        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API Request Failed: ${response.status} ${errorText}`);
+        }
         const result = await response.json();
-        if (!result.success) throw new Error(result.message || 'API 請求失敗，請稍後再試。');
-        
+
+        if (!result.success) {
+            const message = result.message || '發生未知錯誤';
+            console.error('API Error:', message, 'Payload:', payload);
+            alert(`錯誤: ${message}`);
+            return null;
+        }
         return result;
+
     } catch (error) {
-        console.error('API Error:', error);
-        alert(`發生錯誤: ${error.message}`);
+        console.error('Fetch Error:', error);
+        alert(`網路連線或伺服器發生問題: ${error.message}`);
         return null;
     } finally {
         hideLoader();
     }
 }
 
-// --- Floating Action Button (FAB) Logic ---
-function setupFAB(containerId) {
-    const fabContainer = document.getElementById(containerId);
-    if (!fabContainer) return;
+// --- UI Helpers ---
+function showLoader() { document.getElementById('loader')?.classList.remove('hidden'); }
+function hideLoader() { document.getElementById('loader')?.classList.add('hidden'); }
 
-    if (document.body.scrollHeight > window.innerHeight) {
-        fabContainer.classList.add('visible');
-    }
-
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 100) {
-            fabContainer.classList.add('visible');
-        } else {
-            fabContainer.classList.remove('visible');
-        }
-    }, { passive: true });
+function getFormattedDate(isoString) {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
 }
+
+function getFormattedDateTime(isoString) {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const datePart = getFormattedDate(isoString);
+    const timePart = date.toTimeString().split(' ')[0].substring(0, 5);
+    return `${datePart} ${timePart}`;
+}
+
 
 function populateHistoryDropdown(logs, selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;
-    select.innerHTML = '<option value="">請選擇...</option>';
-    logs.forEach(log => {
-        const option = document.createElement('option');
-        option.value = log.logId;
-        option.textContent = `${log.category} - ${getFormattedDateTime(log.timestamp)}`;
-        select.appendChild(option);
+    select.innerHTML = '<option value="">-- 選擇紀錄 --</option>';
+    
+    const categorizedLogs = logs.reduce((acc, log) => {
+        acc[log.category] = acc[log.category] || [];
+        acc[log.category].push(log);
+        return acc;
+    }, {});
+    
+    Object.keys(categorizedLogs).forEach(category => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = category;
+        categorizedLogs[category].forEach(log => {
+            const option = document.createElement('option');
+            option.value = log.logId;
+            option.textContent = getFormattedDateTime(log.timestamp);
+            optgroup.appendChild(option);
+        });
+        select.appendChild(optgroup);
     });
 }
 
-function getFullOrderText() {
-    const mainTitleEl = document.getElementById('order-main-title');
-    const subtitleEl = document.getElementById('order-subtitle');
-    const dateEl = document.getElementById('order-date');
-    const listContainer = document.getElementById('order-list-container');
+// --- Share Functionality (Optimized) ---
 
-    const mainTitle = mainTitleEl ? mainTitleEl.textContent : '';
-    const subtitle = subtitleEl ? subtitleEl.textContent : '叫貨單';
-    const date = dateEl ? dateEl.textContent : '';
-    
-    let listContent = '';
-    const rows = listContainer.querySelectorAll('.flex.justify-between');
-
-    if (listContainer.querySelector('.whitespace-pre-wrap')) {
-        listContent = listContainer.innerText;
-    } else if (rows.length > 0) {
-        let content = [];
-        rows.forEach(row => {
-            const left = row.children[0]?.textContent || '';
-            const right = row.children[1]?.textContent || '';
-            content.push(`${left}\t${right}`);
-        });
-        listContent = content.join('\n');
+/**
+ * Universal share function that uses Web Share API if available,
+ * otherwise falls back to a URL-based share.
+ * @param {object} shareData - The data to share { title, text, url }
+ * @param {string} fallbackUrl - The URL to open if Web Share API is not supported.
+ */
+async function shareContent(shareData, fallbackUrl) {
+    if (navigator.share) {
+        try {
+            await navigator.share(shareData);
+            console.log('Content shared successfully via Web Share API.');
+        } catch (error) {
+            // Log error, but don't show an alert for user cancellations.
+            if (error.name !== 'AbortError') {
+                console.error('Error using Web Share API:', error);
+            }
+        }
     } else {
-        listContent = listContainer.innerText;
+        console.log('Web Share API not supported, falling back to URL.');
+        window.open(fallbackUrl, '_blank');
     }
-
-    return `${mainTitle} ${subtitle}\n${date}\n\n${listContent.trim()}`;
 }
-
 
 function copyOrderText() {
-    const textToCopy = getFullOrderText();
-    navigator.clipboard.writeText(textToCopy).then(() => {
-        alert('清單文字已複製！');
+    const preview = document.getElementById('order-preview');
+    if (!preview) return;
+
+    const title = document.getElementById('order-subtitle').textContent;
+    const date = document.getElementById('order-date').textContent;
+    const itemsContainer = document.getElementById('order-list-container');
+    
+    let itemsText;
+    if (itemsContainer.children.length > 1 && itemsContainer.querySelector('.flex.justify-between')) { // has items in rows
+        itemsText = Array.from(itemsContainer.querySelectorAll('.flex.justify-between'))
+            .slice(1) // skip header
+            .map(row => `${row.children[0].textContent}\t${row.children[1].textContent}`)
+            .join('\n');
+    } else { // no items message
+        itemsText = itemsContainer.textContent;
+    }
+
+    const fullText = `${title}\n${date}\n-------------------\n${itemsText}`;
+
+    navigator.clipboard.writeText(fullText).then(() => {
+        alert('叫貨單文字已複製！');
     }, (err) => {
-        alert('複製失敗: ', err);
+        alert('複製失敗，請稍後再試。');
+        console.error('Could not copy text: ', err);
     });
 }
 
-function shareToLineText() {
-    const text = getFullOrderText();
-    if (!text) return;
-    const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
-    window.open(lineUrl, '_blank');
+async function shareToLineText() {
+    const preview = document.getElementById('order-preview');
+    if (!preview) return;
+    
+    const title = document.getElementById('order-subtitle').textContent;
+    const date = document.getElementById('order-date').textContent;
+    const itemsContainer = document.getElementById('order-list-container');
+    
+    let itemsText;
+    if (itemsContainer.children.length > 1 && itemsContainer.querySelector('.flex.justify-between')) { // has items in rows
+        itemsText = Array.from(itemsContainer.querySelectorAll('.flex.justify-between'))
+            .slice(1) // skip header
+            .map(row => `${row.children[0].textContent} ${row.children[1].textContent}`)
+            .join('\n');
+    } else { // no items message
+        itemsText = itemsContainer.textContent;
+    }
+    
+    const fullText = `${title}\n${date}\n-------------------\n${itemsText}`;
+    const fallbackUrl = `https://line.me/R/msg/text/?${encodeURIComponent(fullText)}`;
+    
+    await shareContent({ title: title, text: fullText }, fallbackUrl);
 }
 
 async function shareToLineImage() {
+    const element = document.getElementById('order-preview');
+    if (!element) return;
     showLoader();
-    const orderPreview = document.getElementById('order-preview');
-    const titleEl = document.getElementById('order-subtitle');
-    const title = titleEl ? titleEl.textContent : '叫貨單';
-
     try {
-        const canvas = await html2canvas(orderPreview, { scale: 2, backgroundColor: '#f8fafc' });
-        const fallbackShare = (canvas, title) => {
-            const image = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.href = image;
-            link.download = `${title}.png`;
-            link.click();
-            alert("您的瀏覽器不支援直接分享。圖片已為您下載，請手動分享至 LINE。");
-        };
-
-        if (navigator.share && navigator.canShare) {
-            canvas.toBlob(async (blob) => {
-                const file = new File([blob], `${title}.png`, { type: blob.type });
-                const shareData = { files: [file], title: title, text: `你好，這是今天的${title}。` };
-                if (navigator.canShare(shareData)) {
-                    try {
-                        await navigator.share(shareData);
-                    } catch (err) {
-                        console.log("分享被取消或失敗:", err);
-                    }
-                } else {
-                    fallbackShare(canvas, title);
-                }
-            }, 'image/png');
+        const canvas = await html2canvas(element, { scale: 2 });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        
+        if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'order.png', { type: 'image/png' })] })) {
+            const file = new File([blob], 'order.png', { type: 'image/png' });
+            await navigator.share({
+                files: [file],
+                title: document.getElementById('order-subtitle').textContent || '叫貨單',
+            });
         } else {
-            fallbackShare(canvas, title);
+            alert('您的瀏覽器不支援分享圖片功能。');
         }
-    } catch (error) {
-        console.error('分享失敗:', error);
-        alert(`產生圖片失敗: ${error.message}`);
+    } catch (err) {
+        console.error('分享截圖失敗:', err);
+        alert('產生或分享圖片時發生錯誤。');
     } finally {
         hideLoader();
     }
