@@ -391,19 +391,23 @@ function handleFormSubmit(event) {
     const itemId = document.getElementById('modal-item-id').value;
     const existingItemIndex = allItems.findIndex(i => i.ItemID === itemId);
     
-    let updatedItemData = {};
+    let updatedItemData;
 
-    // If editing an existing item, start by cloning it to preserve all fields
+    // If editing an existing item, start by cloning it to preserve all fields.
     if (existingItemIndex > -1) {
         updatedItemData = { ...allItems[existingItemIndex] };
     } else {
-        // For new items, set defaults
-        updatedItemData.ItemID = itemId;
-        updatedItemData.Category = currentItemCategory;
+        // For new items, create a base object with all possible keys from the sheet to avoid data loss.
+        updatedItemData = {
+            ItemID: itemId, ItemName: '', Description: '', Category: currentItemCategory,
+            SubCategory: '', Unit: '', IsRequired: false, DefaultStock: '',
+            MinStock_Normal: '', MinStock_Holiday: '', PackageFactor: '',
+            Unit_Inventory: '', Unit_Order: '', SortOrder: '', CheckQuantity: false
+        };
     }
 
     if (currentItemCategory === '菜商') {
-        const itemName = document.getElementById('modal-item-name-veg').value;
+        const itemName = document.getElementById('modal-item-name-veg').value.trim();
         if (!itemName) {
             alert('品項名稱為必填欄位！');
             return;
@@ -413,13 +417,10 @@ function handleFormSubmit(event) {
         updatedItemData.Description = document.getElementById('modal-item-desc-veg').value;
         updatedItemData.SubCategory = document.getElementById('modal-subcategory-veg').value;
         updatedItemData.Unit = unit;
-        updatedItemData.Unit_Inventory = unit;
+        updatedItemData.Unit_Inventory = unit; // For veg, all units are the same.
         updatedItemData.Unit_Order = unit;
-        updatedItemData.IsRequired = false;
-        updatedItemData.CheckQuantity = false;
-
     } else { // For '央廚' and '海鮮廠商'
-        const itemName = document.getElementById('modal-item-name').value;
+        const itemName = document.getElementById('modal-item-name').value.trim();
         if (!itemName) {
             alert('品項名稱為必填欄位！');
             return;
@@ -430,7 +431,7 @@ function handleFormSubmit(event) {
         updatedItemData.Description = document.getElementById('modal-item-desc').value;
         updatedItemData.Unit_Inventory = unitInventory;
         updatedItemData.Unit_Order = document.getElementById('modal-unit-order').value || unitInventory;
-        updatedItemData.Unit = unitInventory; // Sync Unit with Unit_Inventory
+        updatedItemData.Unit = unitInventory; // Sync base Unit with Inventory Unit
         updatedItemData.MinStock_Normal = parseFloat(document.getElementById('modal-min-stock').value) || 0;
         updatedItemData.MinStock_Holiday = parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0;
         const defaultStock = document.getElementById('modal-default-stock').value;
