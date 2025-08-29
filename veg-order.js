@@ -102,5 +102,12 @@ function generateManualOrder() {
     }
     
     document.getElementById('order-preview').classList.remove('hidden');
-    document.getElementById('action-buttons').classList.remove('hidden');
+    const actionButtons = document.getElementById('action-buttons');
+    actionButtons.classList.remove('hidden');
+
+    // --- UI 優化：滾動到頁面底部 ---
+    // 使用 setTimeout 確保 DOM 更新後再執行滾動
+    setTimeout(() => {
+        actionButtons.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
 }
