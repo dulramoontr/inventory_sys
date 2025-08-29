@@ -242,16 +242,24 @@ function openItemModal(itemId = null) {
     const commonFields = document.querySelector('.modal-fields-common');
     const vegFields = document.querySelector('.modal-fields-veg');
     const packageFactorField = document.getElementById('modal-package-factor').parentElement;
+    const checkQuantityWrapper = document.getElementById('modal-check-quantity-wrapper');
 
     commonFields.style.display = 'block';
     vegFields.style.display = 'none';
     packageFactorField.style.display = 'block';
+    checkQuantityWrapper.style.display = 'block';
+
 
     if (currentItemCategory === '菜商') {
         commonFields.style.display = 'none';
         vegFields.style.display = 'block';
     } else if (currentItemCategory === '海鮮廠商') {
         packageFactorField.style.display = 'none';
+    }
+    
+    // Hide check quantity for veg
+    if (currentItemCategory === '菜商') {
+        checkQuantityWrapper.style.display = 'none';
     }
 
     if (itemId) {
@@ -268,6 +276,7 @@ function openItemModal(itemId = null) {
         document.getElementById('modal-package-factor').value = item.PackageFactor;
         document.getElementById('modal-is-required').checked = item.IsRequired;
         document.getElementById('modal-subcategory').value = item.SubCategory || '-';
+        document.getElementById('modal-check-quantity').checked = item.CheckQuantity === true || item.CheckQuantity === 'TRUE';
     } else {
         document.getElementById('modal-title').innerText = '新增品項';
         document.getElementById('modal-item-id').value = `ITEM_${Date.now()}`;
@@ -300,7 +309,8 @@ function handleFormSubmit(event) {
         MinStock_Normal: parseFloat(document.getElementById('modal-min-stock').value) || 0,
         MinStock_Holiday: parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0,
         DefaultStock: defaultStockValue ? parseFloat(defaultStockValue) : '',
-        PackageFactor: currentItemCategory === '海鮮廠商' ? 1 : (parseFloat(document.getElementById('modal-package-factor').value) || 1)
+        PackageFactor: currentItemCategory === '海鮮廠商' ? 1 : (parseFloat(document.getElementById('modal-package-factor').value) || 1),
+        CheckQuantity: document.getElementById('modal-check-quantity').checked
     };
     
     if (currentItemCategory === '菜商') {
@@ -309,6 +319,7 @@ function handleFormSubmit(event) {
         newItem.PackageFactor = '';
         newItem.IsRequired = false;
         newItem.DefaultStock = '';
+        newItem.CheckQuantity = false;
     }
 
     if (existingItemIndex > -1) {

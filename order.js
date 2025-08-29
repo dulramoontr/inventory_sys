@@ -86,11 +86,16 @@ function handleOrderTabClick(category) {
         document.getElementById('order-subtitle').textContent = `${category}叫貨單`;
         document.getElementById('order-date').textContent = '';
         document.getElementById('order-list-container').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
+        document.getElementById('quantity-warning').classList.add('hidden');
         document.getElementById('order-preview').classList.remove('hidden');
     }
 }
 
 async function generateOrderList(logId) {
+    const warningContainer = document.getElementById('quantity-warning');
+    warningContainer.classList.add('hidden');
+    warningContainer.innerHTML = '';
+
     if (!logId) {
         document.getElementById('order-preview').classList.add('hidden');
         document.getElementById('action-buttons').classList.add('hidden');
@@ -109,10 +114,17 @@ async function generateOrderList(logId) {
 
     const isHolidayMode = document.getElementById('holiday-mode-toggle').checked;
     const itemsToOrder = [];
+    const highQuantityItems = [];
     const categoryItems = allItems.filter(item => item.Category === log.category);
-    const logItemsMap = new Map(log.items.map(item => [item.itemId, item.quantity]));
+    const logItemsMap = new Map(log.items.map(item => [item.itemId, parseFloat(item.quantity)]));
 
     categoryItems.forEach(itemInfo => {
+        // Check for high quantity warning
+        const checkQty = itemInfo.CheckQuantity === true || itemInfo.CheckQuantity === 'TRUE';
+        if (checkQty && logItemsMap.has(itemInfo.ItemID) && logItemsMap.get(itemInfo.ItemID) > 10) {
+            highQuantityItems.push(itemInfo.ItemName);
+        }
+
         const minStockKey = isHolidayMode ? 'MinStock_Holiday' : 'MinStock_Normal';
         
         // Skip items that were not in the log or don't have a minimum stock set for the current mode
@@ -136,6 +148,12 @@ async function generateOrderList(logId) {
             });
         }
     });
+
+    // Display high quantity warning if any
+    if (highQuantityItems.length > 0) {
+        warningContainer.innerHTML = `<strong>注意：</strong>下列品項庫存數量大於10，請檢查盤點是否異常： ${highQuantityItems.join('、')}`;
+        warningContainer.classList.remove('hidden');
+    }
 
     if (itemsToOrder.length === 0) {
         container.innerText = '所有品項庫存充足，無需叫貨。';

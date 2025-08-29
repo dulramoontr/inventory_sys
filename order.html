@@ -88,9 +88,9 @@
                 <label for="order-history-select" class="block mb-2 text-sm font-medium text-slate-300">選擇盤點紀錄以產生叫貨單</label>
                 <select id="order-history-select" class="w-full p-2.5 rounded-lg focus:ring-2 focus:ring-sky-500 transition"></select>
             </div>
-            <p id="today-inventory-warning" class="text-center text-amber-400 text-sm hidden"></p>
-            <p id="high-stock-warning" class="text-center text-amber-400 text-base font-bold bg-amber-900/50 p-3 rounded-lg hidden"></p>
-
+            <div id="today-inventory-warning" class="hidden p-3 mb-4 text-sm text-amber-800 rounded-lg bg-amber-100" role="alert"></div>
+            <div id="quantity-warning" class="hidden p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-100" role="alert"></div>
+            
             <div id="order-preview" class="p-6 rounded-lg shadow-inner hidden">
                 <h2 id="order-subtitle" class="text-xl font-bold text-center text-slate-800"></h2>
                 <p id="order-date" class="text-center text-sm text-slate-500 mb-4"></p>
