@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>叫貨單 - 庫存系統</title>
+    <title>央廚/海鮮叫貨 - 庫存系統</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -22,6 +22,7 @@
                 radial-gradient(ellipse at 70% 85%, rgba(128, 90, 213, 0.25) 0%, transparent 70%);
             background-attachment: fixed;
             color: #E0E0E0;
+            padding-bottom: 120px; /* Add padding to prevent content from being hidden behind the floating button */
         }
         .glass-card { 
             background: rgba(30, 41, 59, 0.5); 
@@ -33,14 +34,80 @@
         .loader::after { content: ''; position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; border-radius: 50%; border: 5px solid rgba(255, 255, 255, 0.2); border-top-color: #60a5fa; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
         .hidden { display: none !important; }
-        select {
-             background-color: rgba(15, 23, 42, 0.7);
-             border: 1px solid #334155;
-             color: #e2e8f0;
+        
+        input[type="number"] {
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 1px solid #334155;
+            color: #e2e8f0;
         }
+        input[type="number"]:focus {
+            box-shadow: none;
+            border-color: #38bdf8;
+            background-color: #0f172a;
+        }
+        
         #order-preview {
             background-color: #f8fafc;
             color: #1e293b;
+        }
+        /* Floating Action Button Container */
+        .fab-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            background: linear-gradient(to top, rgba(13, 26, 46, 1), rgba(13, 26, 46, 0));
+            z-index: 1000;
+            transform: translateY(100%);
+            opacity: 0;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            pointer-events: none;
+        }
+        .fab-container.visible {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        /* Holiday Mode Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #334155;
+            transition: .4s;
+            border-radius: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #22c55e; /* green-500 */
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
         }
     </style>
 </head>
@@ -48,35 +115,36 @@
     <div class="container mx-auto max-w-3xl p-4 sm:p-6">
 
         <header class="flex items-center justify-center relative my-8">
-            <a href="inventory.html" class="absolute left-0 text-slate-300 hover:text-sky-400 transition" title="回到盤點頁">
+            <a href="index.html" class="absolute left-0 text-slate-300 hover:text-sky-400 transition" title="回到首頁">
                 <span class="material-symbols-outlined text-3xl">arrow_circle_left</span>
             </a>
-            <h1 id="order-main-title" class="text-2xl sm:text-3xl font-bold text-slate-100 tracking-wider">叫貨單預覽</h1>
+            <h1 id="order-main-title" class="text-2xl sm:text-3xl font-bold text-slate-100 tracking-wider">叫貨單</h1>
              <a href="index.html" class="absolute right-0 text-slate-300 hover:text-sky-400 transition" title="回到首頁">
                 <span class="material-symbols-outlined text-3xl">home</span>
             </a>
         </header>
 
-        <main class="p-6 rounded-2xl shadow-lg glass-card space-y-6">
-            <div class="tabs flex space-x-2 p-1 bg-slate-900/50 rounded-full">
-                <button class="tab-link flex-1 py-2 px-4 text-center text-slate-300 rounded-full transition-all duration-300 active" data-category="央廚">央廚</button>
-                <button class="tab-link flex-1 py-2 px-4 text-center text-slate-300 rounded-full transition-all duration-300" data-category="海鮮廠商">海鮮廠商</button>
-            </div>
-
-             <div>
-                <label for="order-history-select" class="block mb-2 text-sm font-medium text-slate-300">選擇盤點紀錄以產生叫貨單</label>
-                <select id="order-history-select" class="w-full p-2.5 rounded-lg focus:ring-2 focus:ring-sky-500 transition"></select>
-            </div>
-            <p id="today-inventory-warning" class="text-center text-amber-400 text-sm hidden"></p>
-            <p id="high-stock-warning" class="text-center text-amber-400 text-base font-bold bg-amber-900/50 p-3 rounded-lg hidden"></p>
-
-            <div id="order-preview" class="p-6 rounded-lg shadow-inner hidden">
+        <main class="space-y-6">
+            <section id="holiday-mode-container" class="p-4 mb-4 rounded-2xl shadow-lg glass-card flex items-center justify-between hidden">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-yellow-300">celebration</span>
+                    <label for="holiday-mode-toggle" class="font-bold text-slate-200 text-lg">長假模式</label>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="holiday-mode-toggle">
+                    <span class="slider"></span>
+                </label>
+            </section>
+            
+            <section id="order-form-section" class="space-y-3"></section>
+            
+            <section id="order-preview" class="p-6 rounded-lg shadow-inner hidden">
                 <h2 id="order-subtitle" class="text-xl font-bold text-center text-slate-800"></h2>
                 <p id="order-date" class="text-center text-sm text-slate-500 mb-4"></p>
                 <div id="order-list-container" class="mt-4 text-slate-700"></div>
-            </div>
+            </section>
 
-            <div id="action-buttons" class="grid grid-cols-1 sm:grid-cols-3 gap-3 hidden">
+            <section id="action-buttons" class="grid grid-cols-1 sm:grid-cols-3 gap-3 hidden">
                 <button id="copy-text-btn" class="action-btn">
                     <span class="material-symbols-outlined">content_copy</span>複製文字
                 </button>
@@ -86,14 +154,23 @@
                 <button id="share-line-img-btn" class="action-btn">
                     <span class="material-symbols-outlined">image</span>LINE 圖片
                 </button>
-            </div>
+            </section>
         </main>
         
     </div>
+
+    <div id="fab-container-order" class="fab-container">
+        <div class="container mx-auto max-w-3xl">
+             <button id="generate-order-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                產生叫貨單
+            </button>
+        </div>
+    </div>
+
     <div id="loader" class="loader hidden"></div>
     <script src="common.js"></script>
     <script src="order.js"></script>
-    <style>
+     <style>
       .action-btn {
         display: flex;
         align-items: center;
@@ -114,17 +191,5 @@
         border-color: #38bdf8;
       }
     </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const tabs = document.querySelectorAll('.tabs .tab-link');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    tabs.forEach(t => t.classList.remove('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold'));
-                    tab.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
-                });
-            });
-             document.querySelector('.tab-link.active').classList.add('bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
-        });
-    </script>
 </body>
 </html>

@@ -1,151 +1,173 @@
 // =================================================================
-// ORDER PAGE LOGIC (`order.html` - CK/Seafood)
+// ORDERING PAGE LOGIC (`order.html`)
 // =================================================================
 async function initOrderPage() {
     showLoader();
     try {
-        const itemsResult = await apiRequest('GET', { action: 'getItems' });
-        if (itemsResult) {
-             allItems = itemsResult.data;
-             allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
-        }
-
-        const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
-        if (logsResult) {
-            inventoryLogs = logsResult.data;
-            populateHistoryDropdown(inventoryLogs, 'order-history-select');
-        }
-        
-        setupOrderTabs();
-
-        document.getElementById('order-history-select').addEventListener('change', (e) => {
-            generateOrderList(e.target.value);
-        });
-
+        setupFAB('fab-container-order'); // Initialize floating button
         const urlParams = new URLSearchParams(window.location.search);
-        const logId = urlParams.get('logId');
-        if (logId) {
-            const logResult = await apiRequest('GET', {action: 'getLogById', logId: logId});
-            if(logResult && logResult.data){
-                const log = logResult.data;
-                const targetTab = document.querySelector(`.tab-link[data-category="${log.category}"]`);
-                if (targetTab) targetTab.click();
-                document.getElementById('order-history-select').value = logId;
-                await generateOrderList(logId);
-            }
-        } else {
-           handleOrderTabClick('央廚'); // Default to the first tab
+        const category = urlParams.get('category');
+        
+        if (!category) {
+            document.getElementById('order-main-title').textContent = '錯誤';
+            document.getElementById('order-form-section').innerHTML = '<p class="text-center text-red-400">未指定商品類別。</p>';
+            return;
         }
+
+        currentItemCategory = decodeURIComponent(category);
+        document.getElementById('order-main-title').textContent = `${currentItemCategory}叫貨`;
+
+        const [itemsResult, inventoryResult] = await Promise.all([
+            apiRequest('GET', { action: 'getItems' }),
+            apiRequest('GET', { action: 'getLatestInventory' })
+        ]);
+
+        if (itemsResult) {
+            allItems = itemsResult.data;
+            allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+        }
+
+        if (inventoryResult && inventoryResult.data.length > 0) {
+            latestInventory = inventoryResult.data;
+        }
+
+        // Holiday Mode Logic
+        const holidayModeToggle = document.getElementById('holiday-mode-toggle');
+        const holidayModeContainer = document.getElementById('holiday-mode-container');
+        
+        const hasHolidayStockItems = allItems.some(item => 
+            item.Category === currentItemCategory && 
+            item.MinStock_Holiday !== '' && 
+            item.MinStock_Holiday !== null
+        );
+
+        if (hasHolidayStockItems) {
+            holidayModeContainer.classList.remove('hidden');
+            holidayModeToggle.addEventListener('change', renderOrderForm);
+        }
+
+        renderOrderForm();
 
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
         document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
         document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
+        document.getElementById('generate-order-btn').onclick = generateManualOrder;
+
     } finally {
         hideLoader();
     }
 }
 
-function setupOrderTabs() {
-    document.querySelectorAll('.tabs .tab-link').forEach(tab => {
-        tab.addEventListener('click', () => {
-            handleOrderTabClick(tab.dataset.category);
-        });
+function renderOrderForm() {
+    const container = document.getElementById('order-form-section');
+    container.innerHTML = '';
+    const itemsToDisplay = allItems.filter(i => i.Category === currentItemCategory);
+    
+    const isHolidayMode = document.getElementById('holiday-mode-toggle')?.checked || false;
+
+    itemsToDisplay.forEach(item => {
+        const inventoryItem = latestInventory.find(inv => inv.ItemID === item.ItemID);
+        const currentStock = inventoryItem ? parseFloat(inventoryItem.Quantity) : 0;
+        
+        const minStockNormal = (item.MinStock_Normal !== '' && item.MinStock_Normal !== null) ? parseFloat(item.MinStock_Normal) : 0;
+        const minStockHoliday = (item.MinStock_Holiday !== '' && item.MinStock_Holiday !== null) ? parseFloat(item.MinStock_Holiday) : minStockNormal;
+
+        const minStock = isHolidayMode ? minStockHoliday : minStockNormal;
+
+        const neededQty = Math.max(0, minStock - currentStock);
+        
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'flex items-center justify-between p-3 bg-slate-800/50 rounded-lg';
+        const orderUnit = item.Unit_Order || item.Unit_Inventory || item.Unit;
+
+        itemDiv.innerHTML = `
+            <div class="flex-1">
+                <span class="font-semibold text-slate-200">${item.ItemName}</span>
+                <p class="text-sm text-slate-400">
+                    庫存: ${currentStock}${item.Unit_Inventory || item.Unit} / 
+                    安全: ${minStock}${item.Unit_Inventory || item.Unit}
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <input 
+                    type="number" 
+                    step="0.1" 
+                    inputmode="decimal" 
+                    class="order-quantity text-right p-2 border rounded-md w-24" 
+                    data-item-id="${item.ItemID}"
+                    data-item-name="${item.ItemName}" 
+                    data-unit="${orderUnit}" 
+                    data-subcategory="${item.SubCategory || '其他'}" 
+                    value="${neededQty > 0 ? neededQty : ''}"
+                    placeholder="數量">
+                <span class="text-slate-400 w-12 text-left">${orderUnit}</span>
+            </div>
+        `;
+        container.appendChild(itemDiv);
     });
 }
 
-function handleOrderTabClick(category) {
-    currentItemCategory = category;
-    document.getElementById('order-preview').classList.add('hidden');
-    document.getElementById('action-buttons').classList.add('hidden');
 
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const hasTodayLog = inventoryLogs.some(log => log.category === category && log.timestamp.startsWith(todayStr));
-    const warningEl = document.getElementById('today-inventory-warning');
-
-    if (!hasTodayLog) {
-        warningEl.textContent = `注意：今日尚無「${category}」的盤點紀錄，叫貨單可能非最新狀態。`;
-        warningEl.classList.remove('hidden');
-    } else {
-        warningEl.classList.add('hidden');
-    }
-
-    const latestLog = inventoryLogs.find(log => log.category === category);
-    if(latestLog) {
-        document.getElementById('order-history-select').value = latestLog.logId;
-        generateOrderList(latestLog.logId);
-    } else {
-        document.getElementById('order-history-select').value = '';
-        document.getElementById('order-subtitle').textContent = `${category}叫貨單`;
-        document.getElementById('order-date').textContent = '';
-        document.getElementById('order-list-container').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
-        document.getElementById('order-preview').classList.remove('hidden');
-    }
-}
-
-async function generateOrderList(logId) {
-    if (!logId) {
-        document.getElementById('order-preview').classList.add('hidden');
-        document.getElementById('action-buttons').classList.add('hidden');
-        return;
-    };
+function generateManualOrder() {
+    const isHolidayMode = document.getElementById('holiday-mode-toggle')?.checked || false;
+    const title = isHolidayMode ? `${currentItemCategory}叫貨單 (長假模式)` : `${currentItemCategory}叫貨單`;
     
-    const result = await apiRequest('GET', { action: 'getLogById', logId });
-    if (!result || !result.data) return;
-    const log = result.data;
-    
-    document.getElementById('order-subtitle').textContent = `${log.category}叫貨單`;
-    document.getElementById('order-date').textContent = `${getFormattedDate(log.timestamp)}`;
+    document.getElementById('order-subtitle').textContent = title;
+    document.getElementById('order-date').textContent = `日期：${getFormattedDateTime(new Date().toISOString())}`;
     
     const container = document.getElementById('order-list-container');
     container.innerHTML = '';
 
     const itemsToOrder = [];
-    const categoryItems = allItems.filter(item => item.Category === log.category);
-    const logItemsMap = new Map(log.items.map(item => [item.itemId, item.quantity]));
-
-    categoryItems.forEach(itemInfo => {
-        // Skip items that were not in the log or don't have a minimum stock set
-        if (!logItemsMap.has(itemInfo.ItemID) || !itemInfo.MinStock_Normal) return;
-
-        const quantity = logItemsMap.get(itemInfo.ItemID);
-        const minStock = itemInfo.MinStock_Normal; 
-        const packageFactor = itemInfo.PackageFactor || 1;
-        
-        const needed = minStock - quantity;
-        if (needed <= 0) return;
-
-        const orderQuantity = Math.ceil(needed / packageFactor);
-        const orderUnit = itemInfo.Unit_Order || itemInfo.Unit_Inventory || itemInfo.Unit;
-
-        if (orderQuantity > 0) {
+    document.querySelectorAll('#order-form-section .order-quantity').forEach(input => {
+        const quantity = input.value;
+        if (quantity && parseFloat(quantity) > 0) {
             itemsToOrder.push({
-                name: itemInfo.ItemName,
-                qty: orderQuantity,
-                unit: orderUnit
+                name: input.dataset.itemName,
+                qty: quantity,
+                unit: input.dataset.unit,
+                subcategory: input.dataset.subcategory
             });
         }
     });
 
     if (itemsToOrder.length === 0) {
-        container.innerText = '所有品項庫存充足，無需叫貨。';
+        container.innerText = '尚未輸入任何叫貨數量。';
     } else {
-        container.innerHTML = `
-            <div class="flex justify-between border-b-2 border-slate-300 pb-2 mb-2 font-bold text-slate-700">
-                <span>品項</span>
-                <span>數量</span>
-            </div>
-        `;
-        itemsToOrder.forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'flex justify-between items-center py-2 border-b border-slate-200';
-            row.innerHTML = `
-                <span class="text-slate-800">${item.name}</span>
-                <span class="text-slate-800 text-right">${item.qty}${item.unit}</span>
-            `;
-            container.appendChild(row);
-        });
-    }
+        const groupedItems = itemsToOrder.reduce((acc, item) => {
+            const key = item.subcategory;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(item);
+            return acc;
+        }, {});
 
+        let orderText = '';
+        const sortedKeys = Object.keys(groupedItems).sort((a,b) => a.localeCompare(b, 'zh-Hant'));
+
+        for (const subcategory of sortedKeys) {
+            // Do not show subcategory title if it's '-'
+            if (subcategory !== '-') {
+                 orderText += `\n【${subcategory}】\n`;
+            } else {
+                 orderText += '\n';
+            }
+            groupedItems[subcategory].forEach(item => {
+                orderText += `${item.name}: ${item.qty}${item.unit}\n`;
+            });
+        }
+        
+        const textDiv = document.createElement('div');
+        textDiv.className = 'whitespace-pre-wrap font-mono text-slate-800 text-sm';
+        textDiv.innerText = orderText.trim();
+        container.appendChild(textDiv);
+    }
+    
     document.getElementById('order-preview').classList.remove('hidden');
-    document.getElementById('action-buttons').classList.remove('hidden');
+    const actionButtons = document.getElementById('action-buttons');
+    actionButtons.classList.remove('hidden');
+    
+    // --- UI 優化：滾動到頁面底部 ---
+    setTimeout(() => {
+        actionButtons.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
 }
