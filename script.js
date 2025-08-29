@@ -333,7 +333,6 @@ function openItemModal(itemId = null) {
     
     const commonFields = document.querySelector('.modal-fields-common');
     const vegFields = document.querySelector('.modal-fields-veg');
-    const subCategoryContainer = document.getElementById('modal-subcategory-container');
     const packageFactorField = document.getElementById('modal-package-factor').parentElement;
     const checkQuantityContainer = document.getElementById('modal-check-quantity-container');
 
@@ -342,7 +341,6 @@ function openItemModal(itemId = null) {
     vegFields.style.display = 'none';
     packageFactorField.style.display = 'block';
     checkQuantityContainer.style.display = 'block';
-    subCategoryContainer.style.display = 'none'; // Hide subcategory by default
 
     if (currentItemCategory === '菜商') {
         commonFields.style.display = 'none';
@@ -365,7 +363,7 @@ function openItemModal(itemId = null) {
         } else {
             document.getElementById('modal-item-name').value = item.ItemName;
             document.getElementById('modal-item-desc').value = item.Description;
-            document.getElementById('modal-unit-inventory').value = item.Unit_Inventory || item.Unit;
+            document.getElementById('modal-unit-inventory').value = item.Unit_Inventory || '';
             document.getElementById('modal-unit-order').value = item.Unit_Order || '';
             document.getElementById('modal-min-stock').value = item.MinStock_Normal;
             document.getElementById('modal-min-stock-holiday').value = item.MinStock_Holiday;
@@ -394,15 +392,21 @@ function handleFormSubmit(event) {
     const existingItemIndex = allItems.findIndex(i => i.ItemID === itemId);
     
     let newItem;
+    let itemName;
 
     if (currentItemCategory === '菜商') {
+        itemName = document.getElementById('modal-item-name-veg').value;
+        if (!itemName) {
+            alert('品項名稱為必填欄位！');
+            return;
+        }
         newItem = {
             ItemID: itemId,
-            ItemName: document.getElementById('modal-item-name-veg').value,
+            ItemName: itemName,
             Description: document.getElementById('modal-item-desc-veg').value,
             Category: currentItemCategory,
             SubCategory: document.getElementById('modal-subcategory-veg').value,
-            Unit_Inventory: document.getElementById('modal-unit-order-veg').value,
+            Unit_Inventory: document.getElementById('modal-unit-order-veg').value, // In sheet, veg's Unit_Inventory is same as Unit_Order
             Unit_Order: document.getElementById('modal-unit-order-veg').value,
             IsRequired: false,
             MinStock_Normal: '',
@@ -410,17 +414,23 @@ function handleFormSubmit(event) {
             DefaultStock: '',
             PackageFactor: '',
             CheckQuantity: false,
+            Unit: '', // Deprecated field but might be needed as placeholder
         };
     } else {
+        itemName = document.getElementById('modal-item-name').value;
+         if (!itemName) {
+            alert('品項名稱為必填欄位！');
+            return;
+        }
         const defaultStockValue = document.getElementById('modal-default-stock').value;
         const unitInventory = document.getElementById('modal-unit-inventory').value;
         const unitOrder = document.getElementById('modal-unit-order').value;
         newItem = {
             ItemID: itemId,
-            ItemName: document.getElementById('modal-item-name').value,
+            ItemName: itemName,
             Description: document.getElementById('modal-item-desc').value,
             Category: currentItemCategory,
-            SubCategory: '-', // Default value
+            SubCategory: '-', // Default value for non-veg items
             Unit_Inventory: unitInventory,
             Unit_Order: unitOrder || unitInventory,
             IsRequired: document.getElementById('modal-is-required').checked,
@@ -428,7 +438,8 @@ function handleFormSubmit(event) {
             MinStock_Holiday: parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0,
             DefaultStock: defaultStockValue ? parseFloat(defaultStockValue) : '',
             PackageFactor: currentItemCategory === '海鮮廠商' ? 1 : (document.getElementById('modal-package-factor').value || 1),
-            CheckQuantity: document.getElementById('modal-check-quantity').checked
+            CheckQuantity: document.getElementById('modal-check-quantity').checked,
+            Unit: '', // Deprecated field
         };
     }
 
