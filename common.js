@@ -10,7 +10,7 @@ let inventoryLogs = [];
 let currentItemCategory = ''; 
 
 // --- Utility Functions ---
-const loader = document.getElementById('loader');
+let loader; // **** CHANGED: Declare loader here, but don't assign it yet.
 const showLoader = () => loader && loader.classList.remove('hidden');
 const hideLoader = () => loader && loader.classList.add('hidden');
 
@@ -67,7 +67,6 @@ function setupFAB(containerId) {
     const fabContainer = document.getElementById(containerId);
     if (!fabContainer) return;
 
-    // Show FAB if page is scrollable
     if (document.body.scrollHeight > window.innerHeight) {
         fabContainer.classList.add('visible');
     }
@@ -106,9 +105,9 @@ function getFullOrderText() {
     let listContent = '';
     const rows = listContainer.querySelectorAll('.flex.justify-between');
 
-    if (listContainer.querySelector('.whitespace-pre-wrap')) { // Veg order format
+    if (listContainer.querySelector('.whitespace-pre-wrap')) {
         listContent = listContainer.innerText;
-    } else if (rows.length > 0) { // Table format for CK/SF
+    } else if (rows.length > 0) {
         let content = [];
         rows.forEach(row => {
             const left = row.children[0]?.textContent || '';
@@ -116,7 +115,7 @@ function getFullOrderText() {
             content.push(`${left}\t${right}`);
         });
         listContent = content.join('\n');
-    } else { // Empty messages
+    } else {
         listContent = listContainer.innerText;
     }
 
@@ -166,7 +165,6 @@ async function shareToLineImage() {
                         await navigator.share(shareData);
                     } catch (err) {
                         console.log("分享被取消或失敗:", err);
-                        // fallbackShare(canvas, title);
                     }
                 } else {
                     fallbackShare(canvas, title);
@@ -186,6 +184,9 @@ async function shareToLineImage() {
 
 // --- Page Initializer Router ---
 document.addEventListener('DOMContentLoaded', () => {
+    // **** CHANGED: Assign loader now that the DOM is fully loaded.
+    loader = document.getElementById('loader');
+
     const path = window.location.pathname.split("/").pop();
     switch (path) {
         case 'settings.html':
@@ -199,6 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
             break;
         case 'veg-order.html':
             initVegOrderPage();
+            break;
+        case 'index.html':
+            // No initialization needed for index page
             break;
     }
 });
