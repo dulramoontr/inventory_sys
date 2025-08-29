@@ -22,7 +22,6 @@ async function initOrderPage() {
             generateOrderList(e.target.value);
         });
         
-        // Add event listener for the holiday mode toggle
         document.getElementById('holiday-mode-toggle').addEventListener('change', () => {
             const selectedLogId = document.getElementById('order-history-select').value;
             if (selectedLogId) {
@@ -42,12 +41,20 @@ async function initOrderPage() {
                 await generateOrderList(logId);
             }
         } else {
-           handleOrderTabClick('央廚'); // Default to the first tab
+           handleOrderTabClick('央廚'); 
         }
 
+        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正區塊 1 開始 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        // 說明：修改 'share-line-text-btn' 的事件監聽器，
+        //      使其呼叫我們在這個檔案中新增的專用分享函數 shareOrderToLine。
+
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
-        document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
+        // 修改這一行：
+        document.getElementById('share-line-text-btn').addEventListener('click', shareOrderToLine);
         document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
+
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正區塊 1 結束 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     } finally {
         hideLoader();
     }
@@ -65,6 +72,9 @@ function handleOrderTabClick(category) {
     currentItemCategory = category;
     document.getElementById('order-preview').classList.add('hidden');
     document.getElementById('action-buttons').classList.add('hidden');
+    
+    const warningContainer = document.getElementById('quantity-warning');
+    if(warningContainer) warningContainer.classList.add('hidden');
 
     const todayStr = new Date().toISOString().slice(0, 10);
     const hasTodayLog = inventoryLogs.some(log => log.category === category && log.timestamp.startsWith(todayStr));
@@ -86,15 +96,16 @@ function handleOrderTabClick(category) {
         document.getElementById('order-subtitle').textContent = `${category}叫貨單`;
         document.getElementById('order-date').textContent = '';
         document.getElementById('order-list-container').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
-        document.getElementById('quantity-warning').classList.add('hidden');
         document.getElementById('order-preview').classList.remove('hidden');
     }
 }
 
 async function generateOrderList(logId) {
     const warningContainer = document.getElementById('quantity-warning');
-    warningContainer.classList.add('hidden');
-    warningContainer.innerHTML = '';
+    if (warningContainer) {
+        warningContainer.classList.add('hidden');
+        warningContainer.innerHTML = '';
+    }
 
     if (!logId) {
         document.getElementById('order-preview').classList.add('hidden');
@@ -119,7 +130,6 @@ async function generateOrderList(logId) {
     const logItemsMap = new Map(log.items.map(item => [item.itemId, parseFloat(item.quantity)]));
 
     categoryItems.forEach(itemInfo => {
-        // Check for high quantity warning
         const checkQty = itemInfo.CheckQuantity === true || itemInfo.CheckQuantity === 'TRUE';
         if (checkQty && logItemsMap.has(itemInfo.ItemID) && logItemsMap.get(itemInfo.ItemID) > 10) {
             highQuantityItems.push(itemInfo.ItemName);
@@ -127,7 +137,6 @@ async function generateOrderList(logId) {
 
         const minStockKey = isHolidayMode ? 'MinStock_Holiday' : 'MinStock_Normal';
         
-        // Skip items that were not in the log or don't have a minimum stock set for the current mode
         if (!logItemsMap.has(itemInfo.ItemID) || !itemInfo[minStockKey]) return;
 
         const quantity = logItemsMap.get(itemInfo.ItemID);
@@ -148,9 +157,8 @@ async function generateOrderList(logId) {
             });
         }
     });
-
-    // Display high quantity warning if any
-    if (highQuantityItems.length > 0) {
+    
+    if (highQuantityItems.length > 0 && warningContainer) {
         warningContainer.innerHTML = `<strong>注意：</strong>下列品項庫存數量大於10，請檢查盤點是否異常： ${highQuantityItems.join('、')}`;
         warningContainer.classList.remove('hidden');
     }
@@ -178,3 +186,55 @@ async function generateOrderList(logId) {
     document.getElementById('order-preview').classList.remove('hidden');
     document.getElementById('action-buttons').classList.remove('hidden');
 }
+
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正區塊 2 開始 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+// 說明：我們在這裡新增一個專門用於此頁面的分享函數 shareOrderToLine。
+//      這個函數會從預覽畫面產生分享文字，並使用 Web Share API（如果可用）。
+
+/**
+ * 分享央廚/海鮮叫貨單到 LINE 或其他應用程式
+ */
+async function shareOrderToLine() {
+    const preview = document.getElementById('order-preview');
+    if (!preview || preview.classList.contains('hidden')) {
+        alert('請先產生叫貨單後再分享。');
+        return;
+    }
+    
+    const title = document.getElementById('order-subtitle').textContent;
+    const date = document.getElementById('order-date').textContent;
+    const itemsContainer = document.getElementById('order-list-container');
+    
+    let itemsText;
+    // 檢查 container 中是否有 flex佈局的子元素，來判斷是否為列表
+    if (itemsContainer.querySelector('.flex.justify-between')) {
+        itemsText = Array.from(itemsContainer.querySelectorAll('.flex.justify-between'))
+            .slice(1) // 移除標題列
+            .map(row => `${row.children[0].textContent} ${row.children[1].textContent}`)
+            .join('\n');
+    } else { 
+        // 如果不是列表，則是 "無需叫貨" 之類的純文字訊息
+        itemsText = itemsContainer.textContent;
+    }
+    
+    const textToShare = `${title}\n${date}\n-------------------\n${itemsText}`;
+
+    const shareData = {
+        title: title,
+        text: textToShare,
+    };
+
+    if (navigator.share) {
+        try {
+            await navigator.share(shareData);
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error('Share failed:', err);
+            }
+        }
+    } else {
+        const fallbackUrl = `https://line.me/R/msg/text/?${encodeURIComponent(textToShare)}`;
+        window.open(fallbackUrl, '_blank');
+    }
+}
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正區塊 2 結束 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
