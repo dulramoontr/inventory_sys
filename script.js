@@ -147,18 +147,22 @@ function setupMainTabs() {
     const tabs = document.querySelectorAll('.main-tab-link');
     const contents = document.querySelectorAll('.main-tab-content');
     
-    // Set default tab
+    // Set default tab state
     const defaultTab = tabs[0];
-    defaultTab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
-    document.getElementById(defaultTab.dataset.tab).style.display = 'block';
-
+    if (defaultTab) {
+        defaultTab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+    }
+    
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             tabs.forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
             tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
             
-            contents.forEach(content => content.style.display = 'none');
-            document.getElementById(tab.dataset.tab).style.display = 'block';
+            contents.forEach(content => content.classList.add('hidden'));
+            const targetContent = document.getElementById(tab.dataset.tab);
+            if (targetContent) {
+                targetContent.classList.remove('hidden');
+            }
         });
     });
 }
@@ -247,8 +251,9 @@ function setupItemSettingsSubTabs() {
     const contents = document.querySelectorAll('.sub-tab-content');
     
     const defaultTab = tabs[0];
-    defaultTab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
-    document.getElementById(defaultTab.dataset.tab).classList.remove('hidden');
+    if (defaultTab) {
+        defaultTab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+    }
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
