@@ -25,12 +25,8 @@ function getFormattedDate(timestampStr) {
 
 function getFormattedDateTime(timestampStr) {
     const date = new Date(timestampStr);
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${year}/${month}/${day} ${hours}:${minutes}`;
+    if (isNaN(date)) return '無效日期';
+    return date.toLocaleString('sv-SE'); // YYYY-MM-DD HH:MM:SS format
 }
 
 async function apiRequest(method, payload) {
@@ -104,27 +100,40 @@ async function initSettingsPage() {
             if (result && result.success) {
                 sessionStorage.setItem('accessVerified', 'true');
             } else {
-                if(!alert) window.location.href = 'index.html';
+                alert('存取碼錯誤！');
+                window.location.href = 'index.html';
                 return;
             }
         }
         
         document.getElementById('settings-content').classList.remove('hidden');
+        
+        // Fetch items and logs in parallel
+        const [itemsResult, logsResult] = await Promise.all([
+            apiRequest('GET', { action: 'getItems' }),
+            apiRequest('GET', { action: 'getInventoryLogs' })
+        ]);
 
-        const result = await apiRequest('GET', { action: 'getItems' });
-        if (result && result.data) {
-            allItems = result.data;
+        if (itemsResult && itemsResult.data) {
+            allItems = itemsResult.data;
             setupSettingsTabs();
             renderItemsForCategory('央廚');
             // Initialize sortable functionality for all tabs
             ['tab-ck', 'tab-sf', 'tab-vg'].forEach(id => {
                  const el = document.getElementById(id);
-                 new Sortable(el, {
-                    animation: 150,
-                    handle: '.drag-handle',
-                    ghostClass: 'sortable-ghost',
-                });
+                 if (el) {
+                    new Sortable(el, {
+                        animation: 150,
+                        handle: '.drag-handle',
+                        ghostClass: 'sortable-ghost',
+                    });
+                 }
             });
+        }
+        
+        if (logsResult && logsResult.data) {
+            inventoryLogs = logsResult.data;
+            renderInventoryLogList();
         }
 
         document.getElementById('save-settings-btn').addEventListener('click', saveAllSettings);
@@ -138,28 +147,87 @@ async function initSettingsPage() {
 
 function setupSettingsTabs() {
     const tabs = document.querySelectorAll('.tabs .tab-link');
-    const tabContents = document.querySelectorAll('.tab-content');
-
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            tabContents.forEach(content => content.classList.add('hidden'));
-            const targetId = tab.dataset.tab;
-            const targetContent = document.getElementById(targetId);
-            if (targetContent) targetContent.classList.remove('hidden');
-            const category = tab.dataset.tab === 'tab-ck' ? '央廚' : tab.dataset.tab === 'tab-sf' ? '海鮮廠商' : '菜商';
+            const category = tab.textContent.replace('庫存', '').replace('叫貨', ''); // Simplified category name
             renderItemsForCategory(category);
         });
     });
 }
 
+// NEW FUNCTION: Renders the list of inventory logs
+function renderInventoryLogList() {
+    const container = document.getElementById('inventory-log-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (inventoryLogs.length === 0) {
+        container.innerHTML = `<p class="text-slate-500 text-center py-4">目前沒有任何盤點紀錄。</p>`;
+        return;
+    }
+
+    inventoryLogs.forEach(log => {
+        const logDiv = document.createElement('div');
+        logDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg shadow-sm';
+        logDiv.innerHTML = `
+            <div class="flex flex-col">
+                <span class="font-semibold text-slate-800">${log.category}</span>
+                <span class="text-sm text-slate-500">${getFormattedDateTime(log.timestamp)}</span>
+            </div>
+            <button data-action="delete-log" data-log-id="${log.logId}" class="text-sm text-red-500 hover:text-red-700 font-medium transition flex items-center gap-1">
+                <span class="material-symbols-outlined text-base">delete</span>刪除
+            </button>
+        `;
+        container.appendChild(logDiv);
+    });
+    
+    // Add event listeners for the new delete buttons
+    container.querySelectorAll('button[data-action="delete-log"]').forEach(button => {
+        button.addEventListener('click', handleDeleteLog);
+    });
+}
+
+// NEW FUNCTION: Handles the inventory log deletion process
+async function handleDeleteLog(event) {
+    const logId = event.currentTarget.dataset.logId;
+    if (!logId) return;
+
+    const code = prompt('若要刪除此筆紀錄，請再次輸入存取碼：');
+    if (!code) {
+        alert('已取消刪除操作。');
+        return;
+    }
+
+    const payload = {
+        action: 'deleteInventoryLog',
+        payload: {
+            logId: logId,
+            accessCode: code
+        }
+    };
+
+    const result = await apiRequest('POST', payload);
+    hideLoader(); 
+
+    if (result && result.success) {
+        alert('盤點紀錄已成功刪除！');
+        // Refresh the log list
+        inventoryLogs = inventoryLogs.filter(log => log.logId.toString() !== logId.toString());
+        renderInventoryLogList();
+    } else {
+        // The error message is already handled by apiRequest, so we don't need another alert here.
+    }
+}
+
+
 function renderItemsForCategory(category) {
     currentCategory = category;
     const containerId = category === '央廚' ? 'tab-ck' : category === '海鮮廠商' ? 'tab-sf' : 'tab-vg';
     const container = document.getElementById(containerId);
+    if (!container) return;
     container.innerHTML = ''; 
 
     const categoryItems = allItems.filter(item => item.Category === category);
-    // Sort items by SortOrder property
     categoryItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
 
     if (categoryItems.length === 0) {
@@ -200,16 +268,19 @@ function openItemModal(itemId = null) {
     const form = document.getElementById('item-form');
     form.reset();
     
-    document.querySelector('.modal-fields-common').style.display = 'block';
-    document.querySelector('.modal-fields-veg').style.display = 'none';
+    const commonFields = document.querySelector('.modal-fields-common');
+    const vegFields = document.querySelector('.modal-fields-veg');
+    const packageFactorField = document.getElementById('modal-package-factor').parentElement;
+
+    commonFields.style.display = 'block';
+    vegFields.style.display = 'none';
+    packageFactorField.style.display = 'block';
 
     if (currentCategory === '菜商') {
-        document.querySelector('.modal-fields-common').style.display = 'none';
-        document.querySelector('.modal-fields-veg').style.display = 'block';
+        commonFields.style.display = 'none';
+        vegFields.style.display = 'block';
     } else if (currentCategory === '海鮮廠商') {
-        document.getElementById('modal-package-factor').parentElement.style.display = 'none';
-    } else {
-         document.getElementById('modal-package-factor').parentElement.style.display = 'block';
+        packageFactorField.style.display = 'none';
     }
 
     if (itemId) {
@@ -219,7 +290,7 @@ function openItemModal(itemId = null) {
         document.getElementById('modal-item-id').value = item.ItemID;
         document.getElementById('modal-item-name').value = item.ItemName;
         document.getElementById('modal-item-desc').value = item.Description;
-        document.getElementById('modal-unit-inventory').value = item.Unit_Inventory || item.Unit; // Fallback for old data
+        document.getElementById('modal-unit-inventory').value = item.Unit_Inventory || item.Unit;
         document.getElementById('modal-unit-order').value = item.Unit_Order || '';
         document.getElementById('modal-min-stock').value = item.MinStock_Normal;
         document.getElementById('modal-min-stock-holiday').value = item.MinStock_Holiday;
@@ -255,7 +326,7 @@ function handleFormSubmit(event) {
         Category: currentCategory,
         SubCategory: document.getElementById('modal-subcategory').value,
         Unit_Inventory: unitInventory,
-        Unit_Order: unitOrder || unitInventory, // Default to inventory unit if empty
+        Unit_Order: unitOrder || unitInventory,
         IsRequired: document.getElementById('modal-is-required').checked,
         MinStock_Normal: parseFloat(document.getElementById('modal-min-stock').value) || 0,
         MinStock_Holiday: parseFloat(document.getElementById('modal-min-stock-holiday').value) || 0,
@@ -268,14 +339,13 @@ function handleFormSubmit(event) {
         newItem.MinStock_Holiday = '';
         newItem.PackageFactor = '';
         newItem.IsRequired = false;
+        newItem.DefaultStock = '';
     }
 
     if (existingItemIndex > -1) {
-        // Preserve SortOrder when editing
         newItem.SortOrder = allItems[existingItemIndex].SortOrder;
         allItems[existingItemIndex] = newItem;
     } else {
-        // Assign a new SortOrder for new items
         const categoryItems = allItems.filter(i => i.Category === currentCategory);
         newItem.SortOrder = categoryItems.length > 0 ? Math.max(...categoryItems.map(i => i.SortOrder || 0)) + 1 : 1;
         allItems.push(newItem);
@@ -297,13 +367,14 @@ function updateItemsOrderFromDOM() {
     categories.forEach(category => {
         const containerId = category === '央廚' ? 'tab-ck' : category === '海鮮廠商' ? 'tab-sf' : 'tab-vg';
         const container = document.getElementById(containerId);
-        const itemElements = container.querySelectorAll('div[data-item-id]');
-        
-        itemElements.forEach((el, index) => {
-            const itemId = el.dataset.itemId;
-            const itemInState = allItems.find(i => i.ItemID === itemId);
-            if (itemInState) itemInState.SortOrder = index + 1;
-        });
+        if (container) {
+            const itemElements = container.querySelectorAll('div[data-item-id]');
+            itemElements.forEach((el, index) => {
+                const itemId = el.dataset.itemId;
+                const itemInState = allItems.find(i => i.ItemID === itemId);
+                if (itemInState) itemInState.SortOrder = index + 1;
+            });
+        }
     });
 }
 
@@ -409,7 +480,7 @@ function populateHistoryDropdown(logs, selectId) {
     logs.forEach(log => {
         const option = document.createElement('option');
         option.value = log.logId;
-        option.textContent = `${log.category} - ${new Date(log.timestamp).toLocaleString('sv-SE')}`;
+        option.textContent = `${log.category} - ${getFormattedDateTime(log.timestamp)}`;
         select.appendChild(option);
     });
 }
@@ -550,13 +621,11 @@ function setupOrderTabs() {
     });
 }
 
-// *** MODIFIED: Added logic to check for today's log and show warning ***
 function handleOrderTabClick(category) {
     currentCategory = category;
     document.getElementById('order-preview').classList.add('hidden');
     document.getElementById('action-buttons').classList.add('hidden');
 
-    // Check for today's log for the selected category
     const todayStr = new Date().toISOString().slice(0, 10);
     const hasTodayLog = inventoryLogs.some(log => log.category === category && log.timestamp.startsWith(todayStr));
     const warningEl = document.getElementById('today-inventory-warning');
@@ -580,9 +649,6 @@ function handleOrderTabClick(category) {
         document.getElementById('order-preview').classList.remove('hidden');
     }
 }
-
-// *** REMOVED: The old checkTodayLog function is no longer needed as the logic is now in handleOrderTabClick ***
-// function checkTodayLog() { ... }
 
 async function generateOrderList(logId) {
     if (!logId) {

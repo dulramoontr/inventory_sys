@@ -67,7 +67,7 @@
             <h1 class="text-2xl sm:text-3xl font-bold text-slate-700 tracking-wider">參數設定</h1>
         </header>
 
-        <main id="settings-content" class="hidden p-6 rounded-2xl shadow-lg glass-card space-y-6">
+        <main id="settings-content" class="hidden p-6 rounded-2xl shadow-lg glass-card space-y-8">
             
             <div class="settings-section">
                 <h3 class="text-lg font-bold text-slate-700 mb-2">存取碼修改</h3>
@@ -77,23 +77,32 @@
                 </div>
             </div>
 
-            <div class="tabs flex space-x-2 p-1 bg-blue-100 rounded-full">
-                <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300 active" data-tab="tab-ck">央廚庫存</button>
-                <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-sf">海鮮廠商</button>
-                <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-vg">菜商叫貨</button>
+            <div class="settings-section">
+                <h3 class="text-lg font-bold text-slate-700 mb-2">庫存盤點紀錄管理</h3>
+                <div id="inventory-log-list" class="space-y-2 max-h-72 overflow-y-auto bg-white/40 p-3 rounded-lg">
+                    </div>
             </div>
 
-            <div id="tab-ck" class="tab-content active min-h-[100px] space-y-2"></div>
-            <div id="tab-sf" class="tab-content min-h-[100px] space-y-2"></div>
-            <div id="tab-vg" class="tab-content min-h-[100px] space-y-2"></div>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                 <button id="add-item-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/80 text-blue-600 font-bold rounded-lg shadow-md hover:bg-white transition-all">
-                    <span class="material-symbols-outlined">add</span>新增品項
-                </button>
-                <button id="save-settings-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all">
-                    <span class="material-symbols-outlined">save</span>儲存所有變更
-                </button>
+            <div class="settings-section">
+                 <h3 class="text-lg font-bold text-slate-700 mb-2">品項管理</h3>
+                <div class="tabs flex space-x-2 p-1 bg-blue-100 rounded-full">
+                    <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300 active" data-tab="tab-ck">央廚庫存</button>
+                    <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-sf">海鮮廠商</button>
+                    <button class="tab-link flex-1 py-2 px-4 text-center text-slate-600 rounded-full transition-all duration-300" data-tab="tab-vg">菜商叫貨</button>
+                </div>
+
+                <div id="tab-ck" class="tab-content active min-h-[100px] space-y-2 mt-4"></div>
+                <div id="tab-sf" class="tab-content hidden min-h-[100px] space-y-2 mt-4"></div>
+                <div id="tab-vg" class="tab-content hidden min-h-[100px] space-y-2 mt-4"></div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                     <button id="add-item-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/80 text-blue-600 font-bold rounded-lg shadow-md hover:bg-white transition-all">
+                        <span class="material-symbols-outlined">add</span>新增品項
+                    </button>
+                    <button id="save-settings-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all">
+                        <span class="material-symbols-outlined">save</span>儲存所有變更
+                    </button>
+                </div>
             </div>
         </main>
         
@@ -155,11 +164,23 @@
             const tabs = document.querySelectorAll('.tabs .tab-link');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
+                    // Handle tab content visibility
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                    const targetId = tab.dataset.tab;
+                    document.getElementById(targetId)?.classList.remove('hidden');
+
+                    // Handle tab active styles
                     tabs.forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
                     tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
                 });
             });
-            document.querySelector('.tab-link.active').classList.add('bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+            // Initial active tab styling
+             const activeTab = document.querySelector('.tab-link.active');
+             if(activeTab) {
+                activeTab.classList.add('bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+                const targetId = activeTab.dataset.tab;
+                document.getElementById(targetId)?.classList.remove('hidden');
+             }
         });
     </script>
 </body>
