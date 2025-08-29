@@ -62,6 +62,21 @@ async function apiRequest(method, payload) {
     }
 }
 
+// --- Floating Action Button (FAB) Logic ---
+function setupFAB(containerId) {
+    const fabContainer = document.getElementById(containerId);
+    if (!fabContainer) return;
+
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 100) {
+            fabContainer.classList.add('visible');
+        } else {
+            fabContainer.classList.remove('visible');
+        }
+    }, { passive: true });
+}
+
+
 // --- Page Initializers ---
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname.split("/").pop();
@@ -147,16 +162,15 @@ function setupMainTabs() {
     const tabs = document.querySelectorAll('.main-tab-link');
     const contents = document.querySelectorAll('.main-tab-content');
     
-    // Set default tab state
     const defaultTab = tabs[0];
     if (defaultTab) {
-        defaultTab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+        defaultTab.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
     }
     
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
-            tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+            tabs.forEach(t => t.classList.remove('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold'));
+            tab.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
             
             contents.forEach(content => content.classList.add('hidden'));
             const targetContent = document.getElementById(tab.dataset.tab);
@@ -182,20 +196,19 @@ function renderInventoryLogList() {
 
     inventoryLogs.forEach(log => {
         const logDiv = document.createElement('div');
-        logDiv.className = 'flex items-center justify-between p-2 hover:bg-blue-100/50 rounded-lg';
+        logDiv.className = 'flex items-center justify-between p-2 hover:bg-slate-700/50 rounded-lg transition-colors';
         logDiv.innerHTML = `
             <label class="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" class="log-checkbox rounded" data-log-id="${log.logId}">
+                <input type="checkbox" class="log-checkbox rounded bg-slate-600 border-slate-500 text-sky-500 focus:ring-sky-600" data-log-id="${log.logId}">
                 <div class="flex flex-col">
-                    <span class="font-semibold text-slate-800">${log.category}</span>
-                    <span class="text-sm text-slate-500">${getFormattedDateTime(log.timestamp)}</span>
+                    <span class="font-semibold text-slate-200">${log.category}</span>
+                    <span class="text-sm text-slate-400">${getFormattedDateTime(log.timestamp)}</span>
                 </div>
             </label>
         `;
         container.appendChild(logDiv);
     });
     
-    // Add event listeners for checkboxes
     const checkboxes = container.querySelectorAll('.log-checkbox');
     checkboxes.forEach(checkbox => checkbox.addEventListener('change', updateDeleteButtonState));
     selectAllCheckbox.addEventListener('change', () => {
@@ -252,13 +265,13 @@ function setupItemSettingsSubTabs() {
     
     const defaultTab = tabs[0];
     if (defaultTab) {
-        defaultTab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+        defaultTab.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
     }
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
-            tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+            tabs.forEach(t => t.classList.remove('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold'));
+            tab.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
 
             contents.forEach(content => content.classList.add('hidden'));
             const targetContent = document.getElementById(tab.dataset.tab);
@@ -281,22 +294,22 @@ function renderItemsForCategory(category) {
     categoryItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
 
     if (categoryItems.length === 0) {
-        container.innerHTML = `<p class="text-slate-500 text-center py-4">此分類下尚無品項。</p>`;
+        container.innerHTML = `<p class="text-slate-400 text-center py-4">此分類下尚無品項。</p>`;
     } else {
         categoryItems.forEach(item => {
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg shadow-sm';
+            itemDiv.className = 'flex items-center justify-between p-3 bg-slate-800/50 rounded-lg shadow-sm';
             itemDiv.dataset.itemId = item.ItemID;
             itemDiv.innerHTML = `
                 <div class="flex items-center">
                     <span class="drag-handle material-symbols-outlined">drag_indicator</span>
                     <div class="flex flex-col ml-2">
-                        <span class="font-semibold text-slate-800">${item.ItemName}</span>
+                        <span class="font-semibold text-slate-200">${item.ItemName}</span>
                     </div>
                 </div>
                 <div class="flex space-x-3">
-                    <button data-action="edit" data-item-id="${item.ItemID}" class="text-sm text-slate-600 hover:text-blue-600 font-medium transition">編輯</button>
-                    <button data-action="delete" data-item-id="${item.ItemID}" class="text-sm text-slate-600 hover:text-red-600 font-medium transition">刪除</button>
+                    <button data-action="edit" data-item-id="${item.ItemID}" class="text-sm text-slate-400 hover:text-sky-400 font-medium transition">編輯</button>
+                    <button data-action="delete" data-item-id="${item.ItemID}" class="text-sm text-slate-400 hover:text-red-400 font-medium transition">刪除</button>
                 </div>
             `;
             container.appendChild(itemDiv);
@@ -470,12 +483,12 @@ async function saveItemSettings() {
 }
 
 // =================================================================
-// INVENTORY PAGE LOGIC & OTHER PAGES
-// (No changes needed for other pages, so the rest of the file remains the same)
+// INVENTORY PAGE LOGIC (`inventory.html`)
 // =================================================================
 async function initInventoryPage() {
     showLoader();
     try {
+        setupFAB('fab-container'); // Initialize floating button
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
         if (itemsResult) {
             allItems = itemsResult.data;
@@ -520,17 +533,17 @@ function renderInventoryList(category) {
 
     categoryItems.forEach(item => {
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/60 rounded-lg';
+        itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-slate-800/50 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
         const inventoryUnit = item.Unit_Inventory || item.Unit;
         itemDiv.innerHTML = `
             <div>
-                <span class="font-semibold text-slate-800">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
-                <p class="text-sm text-slate-500">${item.Description || ''}</p>
+                <span class="font-semibold text-slate-200">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
+                <p class="text-sm text-slate-400">${item.Description || ''}</p>
             </div>
             <div class="flex items-center gap-2">
-                <input type="number" step="0.1" inputmode="decimal" class="inventory-quantity text-right p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
-                <span class="text-slate-600 w-12 text-left">${inventoryUnit}</span>
+                <input type="number" step="0.1" inputmode="decimal" class="inventory-quantity text-right p-2 border rounded-md focus:ring-2 focus:ring-sky-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
+                <span class="text-slate-400 w-12 text-left">${inventoryUnit}</span>
             </div>
         `;
         container.appendChild(itemDiv);
@@ -564,8 +577,8 @@ function loadHistoricalInventory(logId) {
 
     document.querySelectorAll('.tabs .tab-link').forEach(tab => {
         if(tab.dataset.category === log.category) {
-           document.querySelectorAll('.tabs .tab-link').forEach(t => t.classList.remove('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold'));
-           tab.classList.add('active', 'bg-white', 'shadow', 'text-blue-600', 'font-semibold');
+           document.querySelectorAll('.tabs .tab-link').forEach(t => t.classList.remove('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold'));
+           tab.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
            renderInventoryList(log.category);
         }
     });
@@ -584,18 +597,24 @@ function loadHistoricalInventory(logId) {
 async function saveInventory() {
     const itemsToSave = [];
     let validationFailed = false;
-    
+    let firstInvalidElement = null;
+
     document.querySelectorAll('#inventory-list div[data-item-id]').forEach(el => {
         const itemId = el.dataset.itemId;
         const itemInfo = allItems.find(i => i.ItemID === itemId);
         const quantityInput = el.querySelector('.inventory-quantity');
         const quantity = quantityInput.value;
 
+        // Reset previous error styles
+        quantityInput.classList.remove('border-red-500', 'ring-2', 'ring-red-500/50');
+
         if (itemInfo.IsRequired && (quantity === '' || quantity === null)) {
             validationFailed = true;
-            quantityInput.classList.add('border-red-500', 'ring', 'ring-red-200');
-        } else {
-             quantityInput.classList.remove('border-red-500', 'ring', 'ring-red-200');
+            quantityInput.classList.add('border-red-500', 'ring-2', 'ring-red-500/50');
+            // Store the first invalid element to scroll to it later
+            if (!firstInvalidElement) {
+                firstInvalidElement = quantityInput;
+            }
         }
 
         if (quantity !== '' && quantity !== null) {
@@ -609,6 +628,10 @@ async function saveInventory() {
 
     if (validationFailed) {
         alert('有必填品項尚未填寫盤點數量！');
+        // Scroll to the first element with an error
+        if (firstInvalidElement) {
+            firstInvalidElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         return;
     }
 
@@ -685,7 +708,7 @@ function setupOrderTabs() {
 }
 
 function handleOrderTabClick(category) {
-    currentCategory = category;
+    currentItemCategory = category;
     document.getElementById('order-preview').classList.add('hidden');
     document.getElementById('action-buttons').classList.add('hidden');
 
@@ -755,7 +778,7 @@ async function generateOrderList(logId) {
         container.innerText = '所有品項庫存充足，無需叫貨。';
     } else {
         container.innerHTML = `
-            <div class="flex justify-between border-b-2 border-slate-400 pb-2 mb-2 font-bold text-slate-700">
+            <div class="flex justify-between border-b-2 border-slate-300 pb-2 mb-2 font-bold text-slate-700">
                 <span>品項</span>
                 <span>數量</span>
             </div>
@@ -781,13 +804,14 @@ async function generateOrderList(logId) {
 async function initVegOrderPage() {
     showLoader();
     try {
+        setupFAB('fab-container-veg'); // Initialize floating button
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
         if (itemsResult) {
              allItems = itemsResult.data;
              allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
         }
 
-        currentCategory = '菜商';
+        currentItemCategory = '菜商';
         renderManualOrderForm();
 
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
@@ -806,26 +830,23 @@ function renderManualOrderForm() {
 
     vegItems.forEach(item => {
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 rounded-lg';
+        itemDiv.className = 'flex items-center justify-between p-3 bg-slate-800/50 rounded-lg';
         const orderUnit = item.Unit_Order || item.Unit_Inventory || item.Unit;
         itemDiv.innerHTML = `
             <div>
-                <span class="font-semibold text-slate-800">${item.ItemName}</span>
-                <p class="text-sm text-slate-500">${item.Description || ''}</p>
+                <span class="font-semibold text-slate-200">${item.ItemName}</span>
+                <p class="text-sm text-slate-400">${item.Description || ''}</p>
             </div>
             <div class="flex items-center gap-2">
-                <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border border-slate-300 rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${orderUnit}" data-subcategory="${item.SubCategory || '其他'}" placeholder="數量">
-                <span class="text-slate-600 w-12 text-left">${orderUnit}</span>
+                <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${orderUnit}" data-subcategory="${item.SubCategory || '其他'}" placeholder="數量">
+                <span class="text-slate-400 w-12 text-left">${orderUnit}</span>
             </div>
         `;
         container.appendChild(itemDiv);
     });
     
-    const generateBtn = document.createElement('button');
-    generateBtn.className = 'w-full flex items-center justify-center gap-2 py-3 px-4 mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-md';
-    generateBtn.textContent = '產生叫貨單';
-    generateBtn.onclick = generateManualOrder;
-    container.appendChild(generateBtn);
+    // The button is now a FAB, so we just need to add its event listener
+    document.getElementById('generate-order-btn').onclick = generateManualOrder;
 }
 
 function generateManualOrder() {
@@ -934,7 +955,7 @@ async function shareToLineImage() {
     const title = document.getElementById('order-subtitle').textContent || '叫貨單';
 
     try {
-        const canvas = await html2canvas(orderPreview, { scale: 2 });
+        const canvas = await html2canvas(orderPreview, { scale: 2, backgroundColor: '#f8fafc' });
         if (navigator.share && navigator.canShare) {
             canvas.toBlob(async (blob) => {
                 const file = new File([blob], `${title}.png`, { type: blob.type });

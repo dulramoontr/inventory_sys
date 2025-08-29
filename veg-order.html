@@ -22,6 +22,7 @@
                 radial-gradient(ellipse at 70% 85%, rgba(128, 90, 213, 0.25) 0%, transparent 70%);
             background-attachment: fixed;
             color: #E0E0E0;
+            padding-bottom: 120px; /* Add padding to prevent content from being hidden behind the floating button */
         }
         .glass-card { 
             background: rgba(30, 41, 59, 0.5); 
@@ -48,6 +49,25 @@
         #order-preview {
             background-color: #f8fafc;
             color: #1e293b;
+        }
+        /* Floating Action Button Container */
+        .fab-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            background: linear-gradient(to top, rgba(13, 26, 46, 1), rgba(13, 26, 46, 0));
+            z-index: 1000;
+            transform: translateY(100%);
+            opacity: 0;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            pointer-events: none;
+        }
+        .fab-container.visible {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
         }
     </style>
 </head>
@@ -88,6 +108,15 @@
         </main>
         
     </div>
+
+    <div id="fab-container-veg" class="fab-container">
+        <div class="container mx-auto max-w-3xl">
+             <button id="generate-order-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                產生叫貨單
+            </button>
+        </div>
+    </div>
+
     <div id="loader" class="loader hidden"></div>
     <script src="script.js"></script>
      <style>
