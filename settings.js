@@ -36,7 +36,14 @@ async function initSettingsPage() {
             ['item-tab-ck', 'item-tab-sf', 'item-tab-vg'].forEach(id => {
                  const el = document.getElementById(id);
                  if (el) {
-                    new Sortable(el, { animation: 150, handle: '.drag-handle', ghostClass: 'sortable-ghost' });
+                    // *** MODIFICATION START: Added forceFallback option for better mobile touch support ***
+                    new Sortable(el, { 
+                        animation: 150, 
+                        handle: '.drag-handle', 
+                        ghostClass: 'sortable-ghost',
+                        forceFallback: true 
+                    });
+                    // *** MODIFICATION END ***
                  }
             });
         }
