@@ -86,6 +86,7 @@ function handleOrderTabClick(category) {
         document.getElementById('order-subtitle').textContent = `${category}叫貨單`;
         document.getElementById('order-date').textContent = '';
         document.getElementById('order-list-container').innerText = '此分類尚無盤點紀錄可產生叫貨單。';
+        document.getElementById('order-summary').innerHTML = ''; // *** BUG FIX: Clear summary when no logs exist ***
         document.getElementById('quantity-warning').classList.add('hidden');
         document.getElementById('order-preview').classList.remove('hidden');
     }
@@ -107,8 +108,7 @@ async function generateOrderList(logId) {
     try {
         const result = await apiRequest('GET', { action: 'getLogById', logId });
         if (!result || !result.data) {
-            // apiRequest 內部已有錯誤處理和 hideLoader()，理論上不會執行到這裡，但作為保險
-            hideLoader();
+            // apiRequest 內部已有錯誤處理和 hideLoader()
             return;
         }
         const log = result.data;
