@@ -36,12 +36,18 @@ async function initSettingsPage() {
             ['item-tab-ck', 'item-tab-sf', 'item-tab-vg'].forEach(id => {
                  const el = document.getElementById(id);
                  if (el) {
-                    // *** MODIFICATION START: Added forceFallback option for better mobile touch support ***
+                    // *** MODIFICATION START: More robust Sortable.js options for mobile touch support ***
                     new Sortable(el, { 
                         animation: 150, 
                         handle: '.drag-handle', 
                         ghostClass: 'sortable-ghost',
-                        forceFallback: true 
+                        // --- Enhanced Mobile/Touch Options ---
+                        forceFallback: true,        // Force non-native HTML5 drag-and-drop
+                        fallbackOnBody: true,       // Append clone to body to avoid CSS conflicts
+                        fallbackClass: 'sortable-fallback', // Custom class for the cloned element
+                        scroll: true,               // Enable auto-scrolling
+                        scrollSensitivity: 50,      // Pixels from edge to start scrolling
+                        scrollSpeed: 10             // Scroll speed
                     });
                     // *** MODIFICATION END ***
                  }
