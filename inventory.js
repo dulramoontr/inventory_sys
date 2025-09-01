@@ -21,6 +21,19 @@ async function initInventoryPage() {
             loadHistoricalInventory(e.target.value);
         });
         
+        // --- MODIFICATION START: Add event listener for clear buttons via delegation ---
+        const inventoryListContainer = document.getElementById('inventory-list');
+        inventoryListContainer.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('clear-input-btn')) {
+                const inputField = e.target.nextElementSibling;
+                if (inputField && inputField.tagName === 'INPUT') {
+                    inputField.value = '';
+                    inputField.focus(); // Set focus back to the input for better UX
+                }
+            }
+        });
+        // --- MODIFICATION END ---
+
         setupInventoryTabs();
         renderInventoryList('央廚');
 
@@ -50,16 +63,20 @@ function renderInventoryList(category) {
         itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-slate-800/50 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
         const inventoryUnit = item.Unit_Inventory || item.Unit;
+        
+        // --- MODIFICATION START: Added clear button to the HTML structure ---
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-200">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
                 <p class="text-sm text-slate-400">${item.Description || ''}</p>
             </div>
             <div class="flex items-center gap-2">
+                <button type="button" class="clear-input-btn" title="清除數量">&times;</button>
                 <input type="number" step="0.1" inputmode="decimal" class="inventory-quantity text-right p-2 border rounded-md focus:ring-2 focus:ring-sky-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
                 <span class="text-slate-400 w-12 text-left">${inventoryUnit}</span>
             </div>
         `;
+        // --- MODIFICATION END ---
         container.appendChild(itemDiv);
     });
 }
@@ -72,31 +89,34 @@ async function loadHistoricalInventory(logId) {
     }
     
     // Use API to get single log for efficiency, instead of searching in global `inventoryLogs`
-    const result = await apiRequest('GET', { action: 'getLogById', logId });
-    const log = result ? result.data : null;
+    showLoader(); // Show loader while fetching historical data
+    try {
+        const result = await apiRequest('GET', { action: 'getLogById', logId });
+        const log = result ? result.data : null;
 
-    if (!log) {
-        hideLoader();
-        return;
-    }
-
-    // Activate the correct tab
-    document.querySelectorAll('.tabs .tab-link').forEach(tab => {
-        if(tab.dataset.category === log.category) {
-           if (!tab.classList.contains('active')) tab.click();
+        if (!log) {
+            return;
         }
-    });
 
-    // Need a slight delay for the tab's render to complete
-    setTimeout(() => {
-        log.items.forEach(item => {
-            const itemDiv = document.querySelector(`div[data-item-id="${item.itemId}"]`);
-            if (itemDiv) {
-                itemDiv.querySelector('.inventory-quantity').value = item.quantity;
+        // Activate the correct tab
+        document.querySelectorAll('.tabs .tab-link').forEach(tab => {
+            if(tab.dataset.category === log.category) {
+               if (!tab.classList.contains('active')) tab.click();
             }
         });
+
+        // Need a slight delay for the tab's render to complete
+        setTimeout(() => {
+            log.items.forEach(item => {
+                const itemDiv = document.querySelector(`div[data-item-id="${item.itemId}"]`);
+                if (itemDiv) {
+                    itemDiv.querySelector('.inventory-quantity').value = item.quantity;
+                }
+            });
+        }, 100); 
+    } finally {
         hideLoader();
-    }, 100); 
+    }
 }
 
 async function saveInventory() {

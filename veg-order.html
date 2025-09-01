@@ -30,7 +30,8 @@
             -webkit-backdrop-filter: blur(12px); 
             border: 1px solid rgba(255, 255, 255, 0.1); 
         }
-        /* --- New Loader Styles --- */
+
+        /* --- Loader Styles --- */
         .loader { 
             position: fixed; 
             inset: 0; 
@@ -42,40 +43,12 @@
             align-items: center;
             justify-content: center;
         }
-        
-        .ball-grid-pulse {
-            width: 57px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-gap: 5px;
-        }
-        
-        .ball-grid-pulse > div {
-            width: 15px;
-            height: 15px;
-            background-color: #60a5fa;
-            border-radius: 100%;
-            animation: ball-grid-pulse 1.3s ease-in-out infinite; 
-        }
-        
-        .ball-grid-pulse > div:nth-child(1) { animation-delay: 0.03s; }
-        .ball-grid-pulse > div:nth-child(2) { animation-delay: 0.23s; }
-        .ball-grid-pulse > div:nth-child(3) { animation-delay: 0.5s; }
-        .ball-grid-pulse > div:nth-child(4) { animation-delay: 0.1s; }
-        .ball-grid-pulse > div:nth-child(5) { animation-delay: 0.32s; }
-        .ball-grid-pulse > div:nth-child(6) { animation-delay: 0.35s; }
-        .ball-grid-pulse > div:nth-child(7) { animation-delay: -0.3s; }
-        .ball-grid-pulse > div:nth-child(8) { animation-delay: 0.1s; }
-        .ball-grid-pulse > div:nth-child(9) { animation-delay: -0.15s; }
-        
-        @keyframes ball-grid-pulse {
-            0%, 70%, 100% {
-                transform: scale(1);
-            }
-            35% {
-                transform: scale(0.1);
-            }
-        }
+        .ball-grid-pulse { width: 57px; display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 5px; }
+        .ball-grid-pulse > div { width: 15px; height: 15px; background-color: #60a5fa; border-radius: 100%; animation: ball-grid-pulse 1.3s ease-in-out infinite; }
+        .ball-grid-pulse > div:nth-child(1) { animation-delay: 0.03s; } .ball-grid-pulse > div:nth-child(2) { animation-delay: 0.23s; } .ball-grid-pulse > div:nth-child(3) { animation-delay: 0.5s; } .ball-grid-pulse > div:nth-child(4) { animation-delay: 0.1s; } .ball-grid-pulse > div:nth-child(5) { animation-delay: 0.32s; } .ball-grid-pulse > div:nth-child(6) { animation-delay: 0.35s; } .ball-grid-pulse > div:nth-child(7) { animation-delay: -0.3s; } .ball-grid-pulse > div:nth-child(8) { animation-delay: 0.1s; } .ball-grid-pulse > div:nth-child(9) { animation-delay: -0.15s; }
+        @keyframes ball-grid-pulse { 0%, 70%, 100% { transform: scale(1); } 35% { transform: scale(0.1); } }
+        /* --- End of Loader Styles --- */
+
         .hidden { display: none !important; }
         
         input[type="number"] {
@@ -93,6 +66,40 @@
             background-color: #f8fafc;
             color: #1e293b;
         }
+
+        /* --- MODIFICATION START: Clear button and number input styles --- */
+        .clear-input-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            background-color: #334155;
+            color: #94a3b8;
+            font-weight: bold;
+            font-size: 1.25rem;
+            line-height: 1;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .clear-input-btn:hover {
+            background-color: #475569;
+            color: #e2e8f0;
+        }
+        /* Hide number input default spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        /* --- MODIFICATION END --- */
+
         /* Floating Action Button Container */
         .fab-container {
             position: fixed;
@@ -161,18 +168,11 @@
     </div>
 
     <div id="loader" class="loader hidden">
-    <div class="loader-inner ball-grid-pulse">
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
+        <div class="loader-inner ball-grid-pulse">
+            <div></div> <div></div> <div></div> <div></div> <div></div> <div></div> <div></div> <div></div> <div></div>
+        </div>
     </div>
-    </div>
+
     <script src="common.js"></script>
     <script src="veg-order.js"></script>
      <style>

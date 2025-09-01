@@ -13,6 +13,19 @@ async function initVegOrderPage() {
 
         currentItemCategory = '菜商';
         renderManualOrderForm();
+        
+        // --- MODIFICATION START: Add event listener for clear buttons via delegation ---
+        const manualOrderContainer = document.getElementById('manual-order-section');
+        manualOrderContainer.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('clear-input-btn')) {
+                const inputField = e.target.nextElementSibling;
+                if (inputField && inputField.tagName === 'INPUT') {
+                    inputField.value = '';
+                    inputField.focus();
+                }
+            }
+        });
+        // --- MODIFICATION END ---
 
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
         document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
@@ -32,16 +45,20 @@ function renderManualOrderForm() {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center justify-between p-3 bg-slate-800/50 rounded-lg';
         const orderUnit = item.Unit_Order || item.Unit_Inventory || item.Unit;
+        
+        // --- MODIFICATION START: Added clear button to the HTML structure ---
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-200">${item.ItemName}</span>
                 <p class="text-sm text-slate-400">${item.Description || ''}</p>
             </div>
             <div class="flex items-center gap-2">
+                <button type="button" class="clear-input-btn" title="清除數量">&times;</button>
                 <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${orderUnit}" data-subcategory="${item.SubCategory || '其他'}" placeholder="數量">
                 <span class="text-slate-400 w-12 text-left">${orderUnit}</span>
             </div>
         `;
+        // --- MODIFICATION END ---
         container.appendChild(itemDiv);
     });
     
