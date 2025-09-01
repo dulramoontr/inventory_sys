@@ -14,7 +14,6 @@ async function initVegOrderPage() {
         currentItemCategory = '菜商';
         renderManualOrderForm();
         
-        // --- MODIFICATION START: Add event listener for clear buttons via delegation ---
         const manualOrderContainer = document.getElementById('manual-order-section');
         manualOrderContainer.addEventListener('click', (e) => {
             if (e.target && e.target.classList.contains('clear-input-btn')) {
@@ -25,7 +24,64 @@ async function initVegOrderPage() {
                 }
             }
         });
+        
+        // --- MODIFICATION START: Search functionality logic ---
+        const searchInput = document.getElementById('search-input');
+        const searchContainer = document.getElementById('search-container');
+        const clearSearchBtn = document.getElementById('clear-search-btn');
+        const allItemElements = Array.from(manualOrderContainer.children);
+        
+        // Handle search input
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase().trim();
+            let firstMatch = null;
+            
+            allItemElements.forEach(el => {
+                const itemName = el.dataset.itemName.toLowerCase();
+                if (itemName.includes(query)) {
+                    el.style.display = '';
+                    if (!firstMatch) {
+                        firstMatch = el;
+                    }
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+
+            // If there's a match, scroll to the first one
+            if (firstMatch) {
+                const searchContainerHeight = searchContainer.offsetHeight;
+                const topPos = firstMatch.offsetTop - searchContainerHeight - 15; // 15px buffer
+                
+                window.scrollTo({
+                    top: topPos,
+                    behavior: 'smooth'
+                });
+            }
+
+            // Show/hide clear button
+            clearSearchBtn.classList.toggle('hidden', query.length === 0);
+        });
+
+        // Handle clear search button
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            allItemElements.forEach(el => el.style.display = ''); // Show all items
+            clearSearchBtn.classList.add('hidden');
+            searchInput.focus();
+        });
+
+        // Handle sticky behavior
+        searchInput.addEventListener('focus', () => {
+            searchContainer.classList.add('sticky');
+        });
+        searchInput.addEventListener('blur', () => {
+            if (searchInput.value.length === 0) {
+                searchContainer.classList.remove('sticky');
+            }
+        });
         // --- MODIFICATION END ---
+
 
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
         document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
@@ -46,7 +102,10 @@ function renderManualOrderForm() {
         itemDiv.className = 'flex items-center justify-between p-3 bg-slate-800/50 rounded-lg';
         const orderUnit = item.Unit_Order || item.Unit_Inventory || item.Unit;
         
-        // --- MODIFICATION START: Added clear button to the HTML structure ---
+        // --- MODIFICATION START: Added data-item-name attribute for searching ---
+        itemDiv.dataset.itemName = item.ItemName;
+        // --- MODIFICATION END ---
+
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-200">${item.ItemName}</span>
@@ -58,7 +117,6 @@ function renderManualOrderForm() {
                 <span class="text-slate-400 w-12 text-left">${orderUnit}</span>
             </div>
         `;
-        // --- MODIFICATION END ---
         container.appendChild(itemDiv);
     });
     
@@ -122,8 +180,6 @@ function generateManualOrder() {
     const actionButtons = document.getElementById('action-buttons');
     actionButtons.classList.remove('hidden');
 
-    // --- UI 優化：滾動到頁面底部 ---
-    // 使用 setTimeout 確保 DOM 更新後再執行滾動
     setTimeout(() => {
         actionButtons.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
