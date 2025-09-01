@@ -111,6 +111,9 @@ async function generateOrderList(logId) {
     
     const container = document.getElementById('order-list-container');
     container.innerHTML = '';
+    const summaryContainer = document.getElementById('order-summary');
+    summaryContainer.innerHTML = '';
+
 
     const isHolidayMode = document.getElementById('holiday-mode-toggle').checked;
     const itemsToOrder = [];
@@ -173,6 +176,7 @@ async function generateOrderList(logId) {
             `;
             container.appendChild(row);
         });
+        summaryContainer.innerText = `總計 ${itemsToOrder.length} 品項`;
     }
 
     document.getElementById('order-preview').classList.remove('hidden');

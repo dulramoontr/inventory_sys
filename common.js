@@ -97,11 +97,13 @@ function getFullOrderText() {
     const subtitleEl = document.getElementById('order-subtitle');
     const dateEl = document.getElementById('order-date');
     const listContainer = document.getElementById('order-list-container');
+    const summaryEl = document.getElementById('order-summary');
 
-    const mainTitle = mainTitleEl ? mainTitleEl.textContent : '';
+    const mainTitle = "八方悅五股工商店";
     const subtitle = subtitleEl ? subtitleEl.textContent : '叫貨單';
     const date = dateEl ? dateEl.textContent : '';
-    
+    const summary = summaryEl ? summaryEl.textContent : '';
+
     let listContent = '';
     const rows = listContainer.querySelectorAll('.flex.justify-between');
 
@@ -112,14 +114,16 @@ function getFullOrderText() {
         rows.forEach(row => {
             const left = row.children[0]?.textContent || '';
             const right = row.children[1]?.textContent || '';
-            content.push(`${left}\t${right}`);
+            if(left !== '品項') { // Skip header row
+                content.push(`${left}\t${right}`);
+            }
         });
         listContent = content.join('\n');
     } else {
         listContent = listContainer.innerText;
     }
 
-    return `${mainTitle} ${subtitle}\n${date}\n\n${listContent.trim()}`;
+    return `${mainTitle} ${subtitle}\n${date}\n\n${listContent.trim()}\n\n${summary}`;
 }
 
 
