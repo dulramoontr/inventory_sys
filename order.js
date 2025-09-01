@@ -2,7 +2,7 @@
 // ORDER PAGE LOGIC (`order.html` - CK/Seafood)
 // =================================================================
 async function initOrderPage() {
-    showLoader();
+    showLoader(); // 在開始加載時顯示載入動畫
     try {
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
         if (itemsResult) {
@@ -49,7 +49,7 @@ async function initOrderPage() {
         document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
         document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
     } finally {
-        hideLoader();
+        hideLoader(); // 在所有初始化完成後隱藏載入動畫
     }
 }
 
@@ -92,6 +92,7 @@ function handleOrderTabClick(category) {
 }
 
 async function generateOrderList(logId) {
+    showLoader(); // 每次生成叫貨單前顯示載入動畫
     const warningContainer = document.getElementById('quantity-warning');
     warningContainer.classList.add('hidden');
     warningContainer.innerHTML = '';
@@ -99,86 +100,95 @@ async function generateOrderList(logId) {
     if (!logId) {
         document.getElementById('order-preview').classList.add('hidden');
         document.getElementById('action-buttons').classList.add('hidden');
+        hideLoader(); // 無效 logId 時也要隱藏 loader
         return;
     };
     
-    const result = await apiRequest('GET', { action: 'getLogById', logId });
-    if (!result || !result.data) return;
-    const log = result.data;
-    
-    document.getElementById('order-subtitle').textContent = `${log.category}叫貨單`;
-    document.getElementById('order-date').textContent = `${getFormattedDate(log.timestamp)}`;
-    
-    const container = document.getElementById('order-list-container');
-    container.innerHTML = '';
-    const summaryContainer = document.getElementById('order-summary');
-    summaryContainer.innerHTML = '';
-
-
-    const isHolidayMode = document.getElementById('holiday-mode-toggle').checked;
-    const itemsToOrder = [];
-    const highQuantityItems = [];
-    const categoryItems = allItems.filter(item => item.Category === log.category);
-    const logItemsMap = new Map(log.items.map(item => [item.itemId, parseFloat(item.quantity)]));
-
-    categoryItems.forEach(itemInfo => {
-        // Check for high quantity warning
-        const checkQty = itemInfo.CheckQuantity === true || itemInfo.CheckQuantity === 'TRUE';
-        if (checkQty && logItemsMap.has(itemInfo.ItemID) && logItemsMap.get(itemInfo.ItemID) > 10) {
-            highQuantityItems.push(itemInfo.ItemName);
+    try {
+        const result = await apiRequest('GET', { action: 'getLogById', logId });
+        if (!result || !result.data) {
+            // apiRequest 內部已有錯誤處理和 hideLoader()，理論上不會執行到這裡，但作為保險
+            hideLoader();
+            return;
         }
-
-        const minStockKey = isHolidayMode ? 'MinStock_Holiday' : 'MinStock_Normal';
+        const log = result.data;
         
-        // Skip items that were not in the log or don't have a minimum stock set for the current mode
-        if (!logItemsMap.has(itemInfo.ItemID) || !itemInfo[minStockKey]) return;
-
-        const quantity = logItemsMap.get(itemInfo.ItemID);
-        const minStock = itemInfo[minStockKey]; 
-        const packageFactor = itemInfo.PackageFactor || 1;
+        document.getElementById('order-subtitle').textContent = `${log.category}叫貨單`;
+        document.getElementById('order-date').textContent = `${getFormattedDate(log.timestamp)}`;
         
-        const needed = minStock - quantity;
-        if (needed <= 0) return;
+        const container = document.getElementById('order-list-container');
+        container.innerHTML = '';
+        const summaryContainer = document.getElementById('order-summary');
+        summaryContainer.innerHTML = '';
 
-        const orderQuantity = Math.ceil(needed / packageFactor);
-        const orderUnit = itemInfo.Unit_Order || itemInfo.Unit_Inventory || itemInfo.Unit;
 
-        if (orderQuantity > 0) {
-            itemsToOrder.push({
-                name: itemInfo.ItemName,
-                qty: orderQuantity,
-                unit: orderUnit
-            });
-        }
-    });
+        const isHolidayMode = document.getElementById('holiday-mode-toggle').checked;
+        const itemsToOrder = [];
+        const highQuantityItems = [];
+        const categoryItems = allItems.filter(item => item.Category === log.category);
+        const logItemsMap = new Map(log.items.map(item => [item.itemId, parseFloat(item.quantity)]));
 
-    // Display high quantity warning if any
-    if (highQuantityItems.length > 0) {
-        warningContainer.innerHTML = `<strong>注意：</strong>下列品項庫存數量大於10，請檢查盤點是否異常： ${highQuantityItems.join('、')}`;
-        warningContainer.classList.remove('hidden');
-    }
+        categoryItems.forEach(itemInfo => {
+            // Check for high quantity warning
+            const checkQty = itemInfo.CheckQuantity === true || itemInfo.CheckQuantity === 'TRUE';
+            if (checkQty && logItemsMap.has(itemInfo.ItemID) && logItemsMap.get(itemInfo.ItemID) > 10) {
+                highQuantityItems.push(itemInfo.ItemName);
+            }
 
-    if (itemsToOrder.length === 0) {
-        container.innerText = '所有品項庫存充足，無需叫貨。';
-    } else {
-        container.innerHTML = `
-            <div class="flex justify-between border-b-2 border-slate-300 pb-2 mb-2 font-bold text-slate-700">
-                <span>品項</span>
-                <span>數量</span>
-            </div>
-        `;
-        itemsToOrder.forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'flex justify-between items-center py-2 border-b border-slate-200';
-            row.innerHTML = `
-                <span class="text-slate-800">${item.name}</span>
-                <span class="text-slate-800 text-right">${item.qty}${item.unit}</span>
-            `;
-            container.appendChild(row);
+            const minStockKey = isHolidayMode ? 'MinStock_Holiday' : 'MinStock_Normal';
+            
+            // Skip items that were not in the log or don't have a minimum stock set for the current mode
+            if (!logItemsMap.has(itemInfo.ItemID) || !itemInfo[minStockKey]) return;
+
+            const quantity = logItemsMap.get(itemInfo.ItemID);
+            const minStock = itemInfo[minStockKey]; 
+            const packageFactor = itemInfo.PackageFactor || 1;
+            
+            const needed = minStock - quantity;
+            if (needed <= 0) return;
+
+            const orderQuantity = Math.ceil(needed / packageFactor);
+            const orderUnit = itemInfo.Unit_Order || itemInfo.Unit_Inventory || itemInfo.Unit;
+
+            if (orderQuantity > 0) {
+                itemsToOrder.push({
+                    name: itemInfo.ItemName,
+                    qty: orderQuantity,
+                    unit: orderUnit
+                });
+            }
         });
-        summaryContainer.innerText = `總計 ${itemsToOrder.length} 品項`;
-    }
 
-    document.getElementById('order-preview').classList.remove('hidden');
-    document.getElementById('action-buttons').classList.remove('hidden');
+        // Display high quantity warning if any
+        if (highQuantityItems.length > 0) {
+            warningContainer.innerHTML = `<strong>注意：</strong>下列品項庫存數量大於10，請檢查盤點是否異常： ${highQuantityItems.join('、')}`;
+            warningContainer.classList.remove('hidden');
+        }
+
+        if (itemsToOrder.length === 0) {
+            container.innerText = '所有品項庫存充足，無需叫貨。';
+        } else {
+            container.innerHTML = `
+                <div class="flex justify-between border-b-2 border-slate-300 pb-2 mb-2 font-bold text-slate-700">
+                    <span>品項</span>
+                    <span>數量</span>
+                </div>
+            `;
+            itemsToOrder.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center py-2 border-b border-slate-200';
+                row.innerHTML = `
+                    <span class="text-slate-800">${item.name}</span>
+                    <span class="text-slate-800 text-right">${item.qty}${item.unit}</span>
+                `;
+                container.appendChild(row);
+            });
+            summaryContainer.innerText = `總計 ${itemsToOrder.length} 品項`;
+        }
+
+        document.getElementById('order-preview').classList.remove('hidden');
+        document.getElementById('action-buttons').classList.remove('hidden');
+    } finally {
+        hideLoader(); // 在生成完成後隱藏載入動畫
+    }
 }

@@ -10,9 +10,10 @@ let inventoryLogs = [];
 let currentItemCategory = ''; 
 
 // --- Utility Functions ---
-let loader; // **** CHANGED: Declare loader here, but don't assign it yet.
-const showLoader = () => loader && loader.classList.remove('hidden');
-const hideLoader = () => loader && loader.classList.add('hidden');
+let loader; 
+const showLoader = () => { if (loader) loader.classList.remove('hidden'); };
+const hideLoader = () => { if (loader) loader.classList.add('hidden'); };
+
 
 function getFormattedDate(timestampStr) {
     const date = new Date(timestampStr);
@@ -30,7 +31,8 @@ function getFormattedDateTime(timestampStr) {
 }
 
 async function apiRequest(method, payload) {
-    showLoader();
+    // apiRequest 已經包含了 loader 的顯示與隱藏，所以調用它的函數無需再次顯示/隱藏 loader
+    showLoader(); 
     try {
         const options = {
             method: method,
@@ -208,7 +210,7 @@ async function shareToLineImage() {
 
 // --- Page Initializer Router ---
 document.addEventListener('DOMContentLoaded', () => {
-    // **** CHANGED: Assign loader now that the DOM is fully loaded.
+    // 確保 loader 在 DOM 完全載入後才被賦值
     loader = document.getElementById('loader');
 
     const path = window.location.pathname.split("/").pop();
