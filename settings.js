@@ -1,27 +1,46 @@
 // =================================================================
-// SETTINGS PAGE LOGIC (`settings.html`)
+// SETTINGS PAGE LOGIC (`settings.html`) - v2 (UI Refresh)
 // =================================================================
+
 async function initSettingsPage() {
-    showLoader();
-    try {
-        const verified = sessionStorage.getItem('accessVerified');
-        if (!verified) {
-            const code = prompt('請輸入存取碼:');
-            if (code === null) { // User clicked cancel
-                 window.location.href = 'index.html';
-                 return;
-            }
-            const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
-            if (result && result.success) {
-                sessionStorage.setItem('accessVerified', 'true');
-            } else {
-                alert('存取碼錯誤！');
-                window.location.href = 'index.html';
-                return;
-            }
+    showLoader(); 
+    
+    const verified = sessionStorage.getItem('settingsAccessVerified');
+    
+    if (verified === 'true') {
+        await loadSettingsContent();
+    } else {
+        hideLoader();
+        document.getElementById('access-modal').classList.remove('hidden');
+    }
+
+    document.getElementById('access-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const codeInput = document.getElementById('access-code-input');
+        const code = codeInput.value;
+        if (!code) return;
+
+        showLoader();
+        const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
+        hideLoader();
+
+        if (result && result.success) {
+            sessionStorage.setItem('settingsAccessVerified', 'true');
+            document.getElementById('access-modal').classList.add('hidden');
+            await loadSettingsContent();
+        } else {
+            alert('存取碼錯誤！');
+            codeInput.value = '';
+            codeInput.focus();
         }
-        
-        document.getElementById('settings-content').classList.remove('hidden');
+    });
+}
+
+async function loadSettingsContent() {
+    showLoader();
+    document.getElementById('settings-container').classList.remove('hidden');
+
+    try {
         setupMainTabs();
         
         const [itemsResult, logsResult] = await Promise.all([
@@ -36,20 +55,17 @@ async function initSettingsPage() {
             ['item-tab-ck', 'item-tab-sf', 'item-tab-vg'].forEach(id => {
                  const el = document.getElementById(id);
                  if (el) {
-                    // *** MODIFICATION START: More robust Sortable.js options for mobile touch support ***
                     new Sortable(el, { 
                         animation: 150, 
                         handle: '.drag-handle', 
                         ghostClass: 'sortable-ghost',
-                        // --- Enhanced Mobile/Touch Options ---
-                        forceFallback: true,        // Force non-native HTML5 drag-and-drop
-                        fallbackOnBody: true,       // Append clone to body to avoid CSS conflicts
-                        fallbackClass: 'sortable-fallback', // Custom class for the cloned element
-                        scroll: true,               // Enable auto-scrolling
-                        scrollSensitivity: 50,      // Pixels from edge to start scrolling
-                        scrollSpeed: 10             // Scroll speed
+                        forceFallback: true,
+                        fallbackOnBody: true,
+                        fallbackClass: 'sortable-fallback',
+                        scroll: true,
+                        scrollSensitivity: 50,
+                        scrollSpeed: 10
                     });
-                    // *** MODIFICATION END ***
                  }
             });
         }
@@ -59,12 +75,12 @@ async function initSettingsPage() {
             renderInventoryLogList();
         }
 
-        // Event Listeners
+        // Event Listeners (moved inside)
         document.getElementById('save-code-btn').addEventListener('click', saveAccessCode);
         document.getElementById('save-items-btn').addEventListener('click', saveItemSettings);
         document.getElementById('delete-logs-btn').addEventListener('click', handleDeleteSelectedLogs);
         document.getElementById('add-item-btn').addEventListener('click', () => openItemModal());
-        document.querySelector('.modal .close-btn').addEventListener('click', closeItemModal);
+        document.querySelector('#item-modal .close-btn').addEventListener('click', closeItemModal);
         document.getElementById('item-form').addEventListener('submit', handleFormSubmit);
 
     } finally {
@@ -72,18 +88,16 @@ async function initSettingsPage() {
     }
 }
 
+
 function setupMainTabs() {
     const tabs = document.querySelectorAll('.main-tab-link');
     const contents = document.querySelectorAll('.main-tab-content');
     
-    // Set default tab view more safely
     const defaultTabButton = document.querySelector('.main-tab-link[data-tab="settings-tab-code"]');
     const defaultTabContent = document.getElementById('settings-tab-code');
     
     if (defaultTabButton && defaultTabContent) {
-        // Hide all content first
         contents.forEach(content => content.classList.add('hidden'));
-        // Then show the default one
         defaultTabButton.classList.add('active', 'bg-sky-600/50', 'shadow', 'text-white', 'font-semibold');
         defaultTabContent.classList.remove('hidden');
     }
@@ -270,7 +284,6 @@ function openItemModal(itemId = null) {
         packageFactorField.style.display = 'none';
     }
     
-    // Hide check quantity for veg
     if (currentItemCategory === '菜商') {
         checkQuantityWrapper.style.display = 'none';
     }

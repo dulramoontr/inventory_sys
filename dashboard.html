@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>營運概況 - 庫存系統</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #0d1a2e; background-image: radial-gradient(ellipse at 10% 20%, rgba(66, 153, 225, 0.25) 0%, transparent 70%), radial-gradient(ellipse at 90% 30%, rgba(213, 63, 140, 0.2) 0%, transparent 70%), radial-gradient(ellipse at 70% 85%, rgba(128, 90, 213, 0.25) 0%, transparent 70%); background-attachment: fixed; color: #E0E0E0; }
+        .glass-card { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .loader { position: fixed; inset: 0; z-index: 9999; background-color: rgba(10, 20, 35, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
+        .ball-grid-pulse { width: 57px; display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 5px; }
+        .ball-grid-pulse > div { width: 15px; height: 15px; background-color: #60a5fa; border-radius: 100%; animation: ball-grid-pulse 1.3s ease-in-out infinite; }
+        .ball-grid-pulse > div:nth-child(1) { animation-delay: 0.03s; } .ball-grid-pulse > div:nth-child(2) { animation-delay: 0.23s; } .ball-grid-pulse > div:nth-child(3) { animation-delay: 0.5s; } .ball-grid-pulse > div:nth-child(4) { animation-delay: 0.1s; } .ball-grid-pulse > div:nth-child(5) { animation-delay: 0.32s; } .ball-grid-pulse > div:nth-child(6) { animation-delay: 0.35s; } .ball-grid-pulse > div:nth-child(7) { animation-delay: -0.3s; } .ball-grid-pulse > div:nth-child(8) { animation-delay: 0.1s; } .ball-grid-pulse > div:nth-child(9) { animation-delay: -0.15s; }
+        @keyframes ball-grid-pulse { 0%, 70%, 100% { transform: scale(1); } 35% { transform: scale(0.1); } }
+        .hidden { display: none !important; }
+        .metric-loader { display: flex; justify-content: center; align-items: center; min-height: 60px; }
+        .chart-loader { display: flex; justify-content: center; align-items: center; min-height: 300px; }
+        .metric-loader .dot, .chart-loader .dot { width: 8px; height: 8px; margin: 0 3px; background-color: #60a5fa; border-radius: 100%; display: inline-block; animation: sk-bouncedelay 1.4s infinite ease-in-out both; }
+        .metric-loader .dot-1, .chart-loader .dot-1 { animation-delay: -0.32s; }
+        .metric-loader .dot-2, .chart-loader .dot-2 { animation-delay: -0.16s; }
+        @keyframes sk-bouncedelay { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+        .staff-revenue-table .table-header, .staff-revenue-table .table-row { display: grid; gap: 0.75rem; padding: 0.5rem 0.75rem; align-items: center; }
+        .staff-revenue-table .table-header { font-weight: 600; color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .staff-revenue-table .table-header > div { text-align: center; }
+        .staff-revenue-table .table-row:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .staff-revenue-table .table-row > div { text-align: center; padding: 0.25rem; font-family: monospace; font-size: 0.95rem; }
+        .staff-revenue-table .is-champion { background-color: #eab308; color: #1e293b; font-weight: 700; border-radius: 0.375rem; box-shadow: 0 0 15px rgba(234, 179, 8, 0.4); transform: scale(1.02); transition: all 0.2s ease-in-out; }
+        
+        /* --- MODIFICATION START: Styles for access modal --- */
+        .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+        input[type="password"] { background-color: rgba(15, 23, 42, 0.7); border: 1px solid #334155; color: #e2e8f0; }
+        input[type="password"]:focus { box-shadow: none; border-color: #38bdf8; background-color: #0f172a; }
+        /* --- MODIFICATION END --- */
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="dashboard-content" class="container mx-auto max-w-7xl p-4 sm:p-6 hidden">
+
+        <header class="flex items-center justify-center relative my-8">
+            <a href="index.html" class="absolute left-0 text-slate-300 hover:text-sky-400 transition" title="回到首頁"><span class="material-symbols-outlined text-3xl">arrow_circle_left</span></a>
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-100 tracking-wider">營運概況</h1>
+            <a href="index.html" class="absolute right-0 text-slate-300 hover:text-sky-400 transition" title="回到首頁"><span class="material-symbols-outlined text-3xl">home</span></a>
+        </header>
+
+        <main class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="glass-card p-5 rounded-2xl">
+                    <h3 class="text-slate-400 text-sm font-medium">昨日營業額</h3>
+                    <div id="metric-yesterday-revenue" class="text-3xl font-bold text-slate-100 tracking-tight mt-1"><div class="metric-loader"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div></div>
+                </div>
+                <div class="glass-card p-5 rounded-2xl md:col-span-2 lg:col-span-1">
+                    <h3 class="text-slate-400 text-sm font-medium">湯粉預估庫存</h3>
+                    <div id="metric-soup-stock" class="text-3xl font-bold text-slate-100 tracking-tight mt-1"><div class="metric-loader"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div></div>
+                    <p id="metric-soup-stock-desc" class="text-xs text-slate-500 mt-1 hidden">以營業額推估庫存量</p>
+                </div>
+                <div class="glass-card p-5 rounded-2xl">
+                    <h3 class="text-slate-400 text-sm font-medium">本月累計營業額</h3>
+                    <div id="metric-current-month-revenue" class="text-3xl font-bold text-slate-100 tracking-tight mt-1"><div class="metric-loader"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div></div>
+                </div>
+                <div class="glass-card p-5 rounded-2xl">
+                    <h3 class="text-slate-400 text-sm font-medium">前月營業額</h3>
+                    <div id="metric-prev-month-revenue" class="text-3xl font-bold text-slate-100 tracking-tight mt-1"><div class="metric-loader"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div></div>
+                    <div class="mt-2 space-y-1">
+                        <div id="metric-prev-month-mom-trend" class="text-sm"><div class="metric-loader h-5 !min-h-0"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div></div>
+                        <div id="metric-prev-month-yoy-trend" class="text-sm"><div class="metric-loader h-5 !min-h-0"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card p-5 rounded-2xl">
+                <h3 class="text-lg font-semibold text-slate-200">過去30天營業額趨勢</h3>
+                <div id="chart-container-30-day" class="mt-4"><div class="chart-loader"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div><canvas id="chart-30-day-trend" class="hidden"></canvas></div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                 <div class="glass-card p-5 rounded-2xl">
+                    <h3 class="text-lg font-semibold text-slate-200">過去12個月累計營業額</h3>
+                    <div id="chart-container-monthly-revenue" class="mt-4"><div class="chart-loader"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div><canvas id="chart-monthly-revenue" class="hidden"></canvas></div>
+                </div>
+                 <div class="glass-card p-5 rounded-2xl">
+                    <h3 class="text-lg font-semibold text-slate-200">過去12個月關帳人員營收</h3>
+                    <div id="staff-table-container" class="mt-4"><div class="chart-loader"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="access-modal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-sm bg-slate-800 rounded-2xl shadow-xl p-6 border border-slate-600">
+             <h3 class="text-xl font-bold text-slate-100 mb-4 text-center">請輸入存取碼</h3>
+             <form id="access-form" class="space-y-4">
+                <input type="password" id="access-code-input" class="w-full p-3 rounded-lg text-center text-lg tracking-widest" autofocus>
+                <button type="submit" class="w-full py-3 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-700 transition">驗證</button>
+             </form>
+        </div>
+    </div>
+    <div id="loader" class="loader"><div class="loader-inner ball-grid-pulse"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+    <script src="common.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

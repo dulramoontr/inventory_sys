@@ -31,8 +31,8 @@ function getFormattedDateTime(timestampStr) {
 }
 
 async function apiRequest(method, payload) {
-    // apiRequest 已經包含了 loader 的顯示與隱藏，所以調用它的函數無需再次顯示/隱藏 loader
-    showLoader(); 
+    // We will handle loader visibility inside the init functions for better control
+    // showLoader(); 
     try {
         const options = {
             method: method,
@@ -58,10 +58,9 @@ async function apiRequest(method, payload) {
     } catch (error) {
         console.error('API Error:', error);
         alert(`發生錯誤: ${error.message}`);
+        // hideLoader is now handled in the calling function's finally block
         return null;
-    } finally {
-        hideLoader();
-    }
+    } 
 }
 
 // --- Floating Action Button (FAB) Logic ---
@@ -145,7 +144,6 @@ async function shareToLineText() {
     const subtitleEl = document.getElementById('order-subtitle');
     const title = subtitleEl ? subtitleEl.textContent : '叫貨單';
 
-    // Fallback function for browsers that don't support Web Share API
     const fallbackShare = () => {
         const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(textToCopy)}`;
         window.open(lineUrl, '_blank');
@@ -210,7 +208,6 @@ async function shareToLineImage() {
 
 // --- Page Initializer Router ---
 document.addEventListener('DOMContentLoaded', () => {
-    // 確保 loader 在 DOM 完全載入後才被賦值
     loader = document.getElementById('loader');
 
     const path = window.location.pathname.split("/").pop();
@@ -227,8 +224,15 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'veg-order.html':
             initVegOrderPage();
             break;
-        case 'index.html':
-            // No initialization needed for index page
+        // --- 新增 dashboard 頁面路由 ---
+        case 'dashboard.html':
+            initDashboardPage();
             break;
+        case 'index.html':
+            // No initialization needed for index page, hide loader immediately
+            hideLoader(); 
+            break;
+        default:
+             hideLoader();
     }
 });

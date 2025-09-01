@@ -71,6 +71,9 @@
         
         .icon-veg { background: rgba(56, 189, 107, 0.1); }
         .icon-veg::before { background: linear-gradient(45deg, #38ef7d, #11998e, #0072ff); }
+
+        .icon-dashboard { background: rgba(139, 92, 246, 0.1); }
+        .icon-dashboard::before { background: linear-gradient(45deg, #8B5CF6, #EC4899, #F59E0B); }
         
         .icon-settings { background: rgba(66, 153, 225, 0.1); }
         .icon-settings::before { background: linear-gradient(45deg, #42a5f5, #5c6bc0, #8e24aa); }
@@ -90,7 +93,7 @@
             <p class="text-slate-400 mt-2">請選擇您要進行的操作</p>
         </header>
 
-        <main class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+        <main class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-6 gap-y-8 sm:gap-8">
             <a href="inventory.html" class="flex flex-col items-center gap-4 group">
                 <div class="icon-container icon-inventory">
                     <span class="material-symbols-outlined">inventory_2</span>
@@ -102,14 +105,23 @@
                 <div class="icon-container icon-order">
                     <span class="material-symbols-outlined">local_shipping</span>
                 </div>
-                <span class="font-semibold text-slate-200 group-hover:text-sky-400 transition">央廚/海鮮叫貨</span>
+                <div class="flex flex-col items-center">
+                    <span class="font-semibold text-slate-200 group-hover:text-sky-400 transition">央廚/海鮮叫貨</span>
+                    <span class="text-xs text-amber-400 font-semibold mt-1">請先盤點再叫貨</span>
+                </div>
             </a>
-            
             <a href="veg-order.html" class="flex flex-col items-center gap-4 group">
                 <div class="icon-container icon-veg">
                      <span class="material-symbols-outlined">grass</span>
                 </div>
                 <span class="font-semibold text-slate-200 group-hover:text-sky-400 transition">菜商叫貨</span>
+            </a>
+
+            <a href="dashboard.html" class="flex flex-col items-center gap-4 group">
+                <div class="icon-container icon-dashboard">
+                    <span class="material-symbols-outlined">monitoring</span>
+                </div>
+                <span class="font-semibold text-slate-200 group-hover:text-sky-400 transition">營運概況</span>
             </a>
             
             <a href="settings.html" class="flex flex-col items-center gap-4 group">
@@ -120,13 +132,8 @@
             </a>
         </main>
         <footer class="text-center mt-12">
-          <p class="text-slate-400 mt-2">Ver 2.0 - Designed by Uziel</p>
+          <p class="text-slate-400 mt-2">Ver 2.1 - Designed by Uziel</p>
         </footer> 
     </div>
-   
-
 </body>
-
-
-
 </html>
