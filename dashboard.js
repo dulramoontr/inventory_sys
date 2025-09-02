@@ -204,7 +204,6 @@ function renderMonthlyStaffTable(monthlyData) {
 
     let tableHtml = `<div class="staff-revenue-table">`;
 
-    // --- MODIFICATION START: Removed dynamic grid class from HTML generation ---
     tableHtml += `<div class="table-header">`;
     tableHtml += `<div>月份</div>`;
     staffList.forEach(staff => { tableHtml += `<div>${staff}</div>`; });
@@ -253,11 +252,26 @@ function renderMonthlyStaffTable(monthlyData) {
     tableHtml += `</div>`;
     container.innerHTML = tableHtml;
 
-    // --- MODIFICATION START: Apply grid template style reliably using stable selectors ---
+    // --- MODIFICATION START: Use a dynamic stylesheet for robust grid layout ---
     const gridTemplate = `0.8fr ${'1fr '.repeat(staffList.length)}`.trim();
-    container.querySelectorAll('.table-header, .table-row, .table-footer').forEach(el => {
-        el.style.gridTemplateColumns = gridTemplate;
-    });
+    
+    // Create or update a <style> tag in the document's <head>
+    const styleId = 'staff-table-dynamic-style';
+    let styleElement = document.getElementById(styleId);
+    if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+    }
+    
+    // This CSS rule is highly specific and will be reliably applied by the browser
+    styleElement.innerHTML = `
+        #staff-table-container .staff-revenue-table .table-header,
+        #staff-table-container .staff-revenue-table .table-row,
+        #staff-table-container .staff-revenue-table .table-footer {
+            grid-template-columns: ${gridTemplate};
+        }
+    `;
     // --- MODIFICATION END ---
 }
 
