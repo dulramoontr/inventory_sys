@@ -28,30 +28,65 @@
         .metric-loader .dot-1, .chart-loader .dot-1 { animation-delay: -0.32s; }
         .metric-loader .dot-2, .chart-loader .dot-2 { animation-delay: -0.16s; }
         @keyframes sk-bouncedelay { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-
-        .staff-revenue-table .table-header, .staff-revenue-table .table-row, .staff-revenue-table .table-footer { display: grid; gap: 0.75rem; padding: 0.5rem 0.75rem; align-items: center; }
-        .staff-revenue-table .table-header { font-weight: 600; color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-        .staff-revenue-table .table-header > div { text-align: center; }
-        .staff-revenue-table .table-row:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .staff-revenue-table .table-row > div, .staff-revenue-table .table-footer > div { text-align: center; padding: 0.25rem; font-family: monospace; font-size: 0.95rem; }
-        .staff-revenue-table .is-champion { background-color: #eab308; color: #1e293b; font-weight: 700; border-radius: 0.375rem; box-shadow: 0 0 15px rgba(234, 179, 8, 0.4); transform: scale(1.02); transition: all 0.2s ease-in-out; }
         
-        .staff-revenue-table .table-footer { margin-top: 0.5rem; padding-top: 0.75rem; border-top: 2px solid rgba(255, 255, 255, 0.15); font-weight: 600; color: #cbd5e1; }
+        .staff-revenue-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .staff-revenue-table th,
+        .staff-revenue-table td {
+            text-align: center;
+            padding: 0.6rem 0.25rem;
+            font-family: monospace;
+            font-size: 0.95rem;
+            vertical-align: middle;
+        }
+        .staff-revenue-table thead th {
+            font-weight: 600;
+            color: #94a3b8;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .staff-revenue-table tbody tr:not(:last-child) td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .staff-revenue-table tfoot td {
+            padding-top: 0.75rem;
+            border-top: 2px solid rgba(255, 255, 255, 0.15);
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+        .staff-revenue-table th:first-child,
+        .staff-revenue-table td:first-child {
+            width: 28%;
+        }
 
-        /* --- MODIFICATION START: Styles for the average champion crown --- */
-        .is-avg-champion {
+        /* --- MODIFICATION START: Refined champion and crown styles --- */
+        .staff-revenue-table span.is-champion {
+            display: inline-block; /* Allows padding and border-radius */
+            padding: 0.1rem 0.4rem; /* Vertical and horizontal padding */
+            background-color: #eab308;
+            color: #1e2b3b;
+            font-weight: 700;
+            border-radius: 0.375rem;
+            box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
+        }
+        .staff-revenue-table td.is-avg-champion {
             position: relative;
-            color: #fcd34d; /* Bright yellow color for the text */
+            color: #fcd34d;
+            vertical-align: middle; /* Ensure vertical alignment */
         }
         .avg-champion-crown {
             position: absolute;
-            top: -16px; /* Position above the number */
+            top: 2px; /* Adjust position to be above the number */
             left: 50%;
             transform: translateX(-50%);
-            font-size: 20px;
-            color: #f59e0b; /* A slightly darker, richer gold for the crown */
+            font-size: 16px; /* Slightly smaller crown */
+            color: #f59e0b;
             text-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
         }
+        /* This rule is no longer needed and has been removed: */
+        /* .is-avg-champion span { margin-top: 14px; } */
         /* --- MODIFICATION END --- */
 
         .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }

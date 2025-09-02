@@ -202,81 +202,49 @@ function renderMonthlyStaffTable(monthlyData) {
         }
     });
 
-    let tableHtml = `<div class="staff-revenue-table">`;
-
-    tableHtml += `<div class="table-header">`;
-    tableHtml += `<div>月份</div>`;
-    staffList.forEach(staff => { tableHtml += `<div>${staff}</div>`; });
-    tableHtml += `</div>`;
+    let tableHtml = `<table class="staff-revenue-table"><thead><tr>`;
+    tableHtml += `<th>月份</th>`;
+    staffList.forEach(staff => { tableHtml += `<th>${staff}</th>`; });
+    tableHtml += `</tr></thead><tbody>`;
 
     monthlyData.labels.slice().reverse().forEach(month => {
         const staffInMonth = monthlyData.staffRevenueData[month] || {};
         
         let champion = null;
         let maxRevenue = -1;
-        Object.entries(staffInMonth).forEach(([staff, revenue]) => {
-            if (revenue > maxRevenue) {
-                maxRevenue = revenue;
-                champion = staff;
-            }
-        });
+        Object.entries(staffInMonth).forEach(([staff, revenue]) => { if (revenue > maxRevenue) { maxRevenue = revenue; champion = staff; } });
 
-        tableHtml += `<div class="table-row">`;
-        
+        tableHtml += `<tr>`;
         const gregorianYear = parseInt(month.substring(0, 4));
         const rocYear = gregorianYear - 1911;
         const monthNum = month.substring(5, 7);
-        tableHtml += `<div>${rocYear}/${monthNum}</div>`;
+        tableHtml += `<td>${rocYear}/${monthNum}</td>`;
 
         staffList.forEach(staff => {
             const revenue = staffInMonth[staff] || 0;
             const isChampionClass = staff === champion ? 'is-champion' : '';
-            tableHtml += `<div class="${isChampionClass}">${revenue.toLocaleString()}</div>`;
+            // --- MODIFICATION START: Wrap number in a span for precise styling ---
+            tableHtml += `<td><span class="${isChampionClass}">${revenue.toLocaleString()}</span></td>`;
+            // --- MODIFICATION END ---
         });
-
-        tableHtml += `</div>`;
+        tableHtml += `</tr>`;
     });
-
-    tableHtml += `<div class="table-footer">`;
-    tableHtml += `<div>平均</div>`;
+    
+    tableHtml += `</tbody><tfoot><tr>`;
+    tableHtml += `<td>平均</td>`;
     staffList.forEach(staff => {
         const isAvgChampion = staff === averageChampion ? 'is-avg-champion' : '';
-        tableHtml += `
-            <div class="${isAvgChampion}">
-                ${isAvgChampion ? '<span class="avg-champion-crown material-symbols-outlined">workspace_premium</span>' : ''}
-                ${staffAverages[staff].toLocaleString()}
-            </div>`;
+        tableHtml += `<td class="${isAvgChampion}">
+                        ${isAvgChampion ? '<span class="avg-champion-crown material-symbols-outlined">workspace_premium</span>' : ''}
+                        <span>${staffAverages[staff].toLocaleString()}</span>
+                    </td>`;
     });
-    tableHtml += `</div>`;
+    tableHtml += `</tr></tfoot></table>`;
     
-    tableHtml += `</div>`;
     container.innerHTML = tableHtml;
-
-    // --- MODIFICATION START: Use a dynamic stylesheet for robust grid layout ---
-    const gridTemplate = `0.8fr ${'1fr '.repeat(staffList.length)}`.trim();
-    
-    // Create or update a <style> tag in the document's <head>
-    const styleId = 'staff-table-dynamic-style';
-    let styleElement = document.getElementById(styleId);
-    if (!styleElement) {
-        styleElement = document.createElement('style');
-        styleElement.id = styleId;
-        document.head.appendChild(styleElement);
-    }
-    
-    // This CSS rule is highly specific and will be reliably applied by the browser
-    styleElement.innerHTML = `
-        #staff-table-container .staff-revenue-table .table-header,
-        #staff-table-container .staff-revenue-table .table-row,
-        #staff-table-container .staff-revenue-table .table-footer {
-            grid-template-columns: ${gridTemplate};
-        }
-    `;
-    // --- MODIFICATION END ---
 }
 
 
-// --- Helper functions for error display ---
 function renderAllComponentsError() {
     const errorText = `<span class="text-sm text-red-400">讀取失敗</span>`;
     document.getElementById('metric-yesterday-revenue').innerHTML = errorText;
