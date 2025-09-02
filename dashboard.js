@@ -223,9 +223,7 @@ function renderMonthlyStaffTable(monthlyData) {
         staffList.forEach(staff => {
             const revenue = staffInMonth[staff] || 0;
             const isChampionClass = staff === champion ? 'is-champion' : '';
-            // --- MODIFICATION START: Wrap number in a span for precise styling ---
             tableHtml += `<td><span class="${isChampionClass}">${revenue.toLocaleString()}</span></td>`;
-            // --- MODIFICATION END ---
         });
         tableHtml += `</tr>`;
     });
@@ -234,10 +232,12 @@ function renderMonthlyStaffTable(monthlyData) {
     tableHtml += `<td>平均</td>`;
     staffList.forEach(staff => {
         const isAvgChampion = staff === averageChampion ? 'is-avg-champion' : '';
+        // --- MODIFICATION START: Changed icon from 'workspace_premium' to 'emoji_events' ---
         tableHtml += `<td class="${isAvgChampion}">
-                        ${isAvgChampion ? '<span class="avg-champion-crown material-symbols-outlined">workspace_premium</span>' : ''}
+                        ${isAvgChampion ? '<span class="avg-champion-crown material-symbols-outlined">crown</span>' : ''}
                         <span>${staffAverages[staff].toLocaleString()}</span>
                     </td>`;
+        // --- MODIFICATION END ---
     });
     tableHtml += `</tr></tfoot></table>`;
     
