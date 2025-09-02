@@ -14,24 +14,38 @@ async function initVegOrderPage() {
         currentItemCategory = '菜商';
         renderManualOrderForm();
         
+        // --- MODIFICATION START: Event delegation for dynamic clear buttons ---
         const manualOrderContainer = document.getElementById('manual-order-section');
+        
+        // Handle click on clear button
         manualOrderContainer.addEventListener('click', (e) => {
-            if (e.target && e.target.classList.contains('clear-input-btn')) {
-                const inputField = e.target.nextElementSibling;
+            if (e.target && e.target.classList.contains('input-clear-btn')) {
+                const inputField = e.target.previousElementSibling;
                 if (inputField && inputField.tagName === 'INPUT') {
                     inputField.value = '';
+                    e.target.classList.add('hidden');
                     inputField.focus();
                 }
             }
         });
+
+        // Handle input to show/hide clear button
+        manualOrderContainer.addEventListener('input', (e) => {
+            if (e.target && e.target.classList.contains('order-quantity')) {
+                const clearBtn = e.target.nextElementSibling;
+                if (clearBtn && clearBtn.classList.contains('input-clear-btn')) {
+                    clearBtn.classList.toggle('hidden', e.target.value.length === 0);
+                }
+            }
+        });
+        // --- MODIFICATION END ---
         
-        // --- MODIFICATION START: Search functionality logic ---
+        // --- Search functionality logic ---
         const searchInput = document.getElementById('search-input');
         const searchContainer = document.getElementById('search-container');
         const clearSearchBtn = document.getElementById('clear-search-btn');
         const allItemElements = Array.from(manualOrderContainer.children);
         
-        // Handle search input
         searchInput.addEventListener('input', () => {
             const query = searchInput.value.toLowerCase().trim();
             let firstMatch = null;
@@ -40,48 +54,33 @@ async function initVegOrderPage() {
                 const itemName = el.dataset.itemName.toLowerCase();
                 if (itemName.includes(query)) {
                     el.style.display = '';
-                    if (!firstMatch) {
-                        firstMatch = el;
-                    }
+                    if (!firstMatch) firstMatch = el;
                 } else {
                     el.style.display = 'none';
                 }
             });
 
-            // If there's a match, scroll to the first one
             if (firstMatch) {
                 const searchContainerHeight = searchContainer.offsetHeight;
-                const topPos = firstMatch.offsetTop - searchContainerHeight - 15; // 15px buffer
-                
-                window.scrollTo({
-                    top: topPos,
-                    behavior: 'smooth'
-                });
+                const topPos = firstMatch.offsetTop - searchContainerHeight - 15;
+                window.scrollTo({ top: topPos, behavior: 'smooth' });
             }
 
-            // Show/hide clear button
             clearSearchBtn.classList.toggle('hidden', query.length === 0);
         });
 
-        // Handle clear search button
         clearSearchBtn.addEventListener('click', () => {
             searchInput.value = '';
-            allItemElements.forEach(el => el.style.display = ''); // Show all items
+            allItemElements.forEach(el => el.style.display = '');
             clearSearchBtn.classList.add('hidden');
             searchInput.focus();
         });
 
-        // Handle sticky behavior
-        searchInput.addEventListener('focus', () => {
-            searchContainer.classList.add('sticky');
-        });
+        searchInput.addEventListener('focus', () => searchContainer.classList.add('sticky'));
         searchInput.addEventListener('blur', () => {
-            if (searchInput.value.length === 0) {
-                searchContainer.classList.remove('sticky');
-            }
+            if (searchInput.value.length === 0) searchContainer.classList.remove('sticky');
         });
-        // --- MODIFICATION END ---
-
+        // --- End of Search logic ---
 
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
         document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
@@ -102,21 +101,23 @@ function renderManualOrderForm() {
         itemDiv.className = 'flex items-center justify-between p-3 bg-slate-800/50 rounded-lg';
         const orderUnit = item.Unit_Order || item.Unit_Inventory || item.Unit;
         
-        // --- MODIFICATION START: Added data-item-name attribute for searching ---
         itemDiv.dataset.itemName = item.ItemName;
-        // --- MODIFICATION END ---
 
+        // --- MODIFICATION START: Updated HTML structure with wrapper and clear button ---
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-200">${item.ItemName}</span>
                 <p class="text-sm text-slate-400">${item.Description || ''}</p>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" class="clear-input-btn" title="清除數量">&times;</button>
-                <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${orderUnit}" data-subcategory="${item.SubCategory || '其他'}" placeholder="數量">
+                <div class="input-wrapper">
+                    <input type="number" step="0.1" inputmode="decimal" class="order-quantity text-right p-2 border rounded-md w-24" data-item-name="${item.ItemName}" data-unit="${orderUnit}" data-subcategory="${item.SubCategory || '其他'}" placeholder="數量">
+                    <span class="input-clear-btn material-symbols-outlined hidden" title="清除數量">close</span>
+                </div>
                 <span class="text-slate-400 w-12 text-left">${orderUnit}</span>
             </div>
         `;
+        // --- MODIFICATION END ---
         container.appendChild(itemDiv);
     });
     

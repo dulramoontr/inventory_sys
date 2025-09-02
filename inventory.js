@@ -21,14 +21,27 @@ async function initInventoryPage() {
             loadHistoricalInventory(e.target.value);
         });
         
-        // --- MODIFICATION START: Add event listener for clear buttons via delegation ---
+        // --- MODIFICATION START: Event delegation for dynamic clear buttons ---
         const inventoryListContainer = document.getElementById('inventory-list');
+        
+        // Handle click on clear button
         inventoryListContainer.addEventListener('click', (e) => {
-            if (e.target && e.target.classList.contains('clear-input-btn')) {
-                const inputField = e.target.nextElementSibling;
+            if (e.target && e.target.classList.contains('input-clear-btn')) {
+                const inputField = e.target.previousElementSibling;
                 if (inputField && inputField.tagName === 'INPUT') {
                     inputField.value = '';
-                    inputField.focus(); // Set focus back to the input for better UX
+                    e.target.classList.add('hidden'); // Hide button immediately
+                    inputField.focus();
+                }
+            }
+        });
+
+        // Handle input to show/hide clear button
+        inventoryListContainer.addEventListener('input', (e) => {
+            if (e.target && e.target.classList.contains('inventory-quantity')) {
+                const clearBtn = e.target.nextElementSibling;
+                if (clearBtn && clearBtn.classList.contains('input-clear-btn')) {
+                    clearBtn.classList.toggle('hidden', e.target.value.length === 0);
                 }
             }
         });
@@ -63,16 +76,19 @@ function renderInventoryList(category) {
         itemDiv.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-slate-800/50 rounded-lg';
         itemDiv.dataset.itemId = item.ItemID;
         const inventoryUnit = item.Unit_Inventory || item.Unit;
+        const defaultValue = item.DefaultStock || '';
         
-        // --- MODIFICATION START: Added clear button to the HTML structure ---
+        // --- MODIFICATION START: Updated HTML structure with wrapper and clear button ---
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-200">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
                 <p class="text-sm text-slate-400">${item.Description || ''}</p>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" class="clear-input-btn" title="清除數量">&times;</button>
-                <input type="number" step="0.1" inputmode="decimal" class="inventory-quantity text-right p-2 border rounded-md focus:ring-2 focus:ring-sky-500 w-24" value="${item.DefaultStock || ''}" placeholder="數量">
+                <div class="input-wrapper">
+                    <input type="number" step="0.1" inputmode="decimal" class="inventory-quantity text-right p-2 border rounded-md focus:ring-2 focus:ring-sky-500 w-24" value="${defaultValue}" placeholder="數量">
+                    <span class="input-clear-btn material-symbols-outlined ${defaultValue ? '' : 'hidden'}" title="清除數量">close</span>
+                </div>
                 <span class="text-slate-400 w-12 text-left">${inventoryUnit}</span>
             </div>
         `;
@@ -88,29 +104,29 @@ async function loadHistoricalInventory(logId) {
         return;
     }
     
-    // Use API to get single log for efficiency, instead of searching in global `inventoryLogs`
-    showLoader(); // Show loader while fetching historical data
+    showLoader();
     try {
         const result = await apiRequest('GET', { action: 'getLogById', logId });
         const log = result ? result.data : null;
 
-        if (!log) {
-            return;
-        }
+        if (!log) return;
 
-        // Activate the correct tab
         document.querySelectorAll('.tabs .tab-link').forEach(tab => {
             if(tab.dataset.category === log.category) {
                if (!tab.classList.contains('active')) tab.click();
             }
         });
 
-        // Need a slight delay for the tab's render to complete
         setTimeout(() => {
             log.items.forEach(item => {
                 const itemDiv = document.querySelector(`div[data-item-id="${item.itemId}"]`);
                 if (itemDiv) {
-                    itemDiv.querySelector('.inventory-quantity').value = item.quantity;
+                    const quantityInput = itemDiv.querySelector('.inventory-quantity');
+                    const clearBtn = itemDiv.querySelector('.input-clear-btn');
+                    quantityInput.value = item.quantity;
+                    if (clearBtn) {
+                        clearBtn.classList.toggle('hidden', !item.quantity);
+                    }
                 }
             });
         }, 100); 
