@@ -10,37 +10,31 @@ Chart.defaults.color = '#94a3b8';
 Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
 
 
-// --- MODIFICATION START: Reworked to use a single API call while maintaining UX ---
+// --- Initialization logic remains the same ---
 async function initDashboardPage() {
-    // Hide the main loader immediately, as we now use per-component loaders.
     hideLoader(); 
-    
     const verified = sessionStorage.getItem('dashboardAccessVerified');
     
     if (verified === 'true') {
-        // If already verified, show the dashboard structure and start loading data.
         document.getElementById('dashboard-content').classList.remove('hidden');
         loadAndRenderDashboard();
     } else {
-        // If not verified, show the access modal.
         document.getElementById('access-modal').classList.remove('hidden');
     }
 
-    // Add event listener for the access form submission.
     document.getElementById('access-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const codeInput = document.getElementById('access-code-input');
         const code = codeInput.value;
         if (!code) return;
 
-        showLoader(); // Show full-page loader ONLY during the verification process.
+        showLoader();
         const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
         hideLoader();
 
         if (result && result.success) {
             sessionStorage.setItem('dashboardAccessVerified', 'true');
             document.getElementById('access-modal').classList.add('hidden');
-            // On successful verification, show dashboard and start loading data.
             document.getElementById('dashboard-content').classList.remove('hidden');
             loadAndRenderDashboard();
         } else {
@@ -51,30 +45,22 @@ async function initDashboardPage() {
     });
 }
 
-// New main function to load all data via a single API call and then render all components.
 async function loadAndRenderDashboard() {
     try {
-        // Use the original, valid 'getDashboardData' action to fetch all data at once.
         const result = await apiRequest('GET', { action: 'getDashboardData' });
-        
         if (result && result.data) {
-            // Once data is retrieved, render all components.
             renderDashboard(result.data);
         } else {
-            // Handle cases where the API call succeeds but returns no data.
             throw new Error("API returned no data.");
         }
     } catch (error) {
         console.error("Dashboard data loading failed:", error);
-        // If the single API call fails, show an error message in all components.
         renderAllComponentsError();
     }
 }
-// --- MODIFICATION END ---
 
 
 function renderDashboard(data) {
-    // This function renders all components once the data is available.
     renderMetrics(data);
     render30DayTrendChart(data.last30DaysRevenue);
     renderMonthlyRevenueChart(data.last12Months);
@@ -166,6 +152,7 @@ function renderMonthlyRevenueChart(monthlyData) {
     });
 }
 
+// --- MODIFICATION START: Added logic to find and display average champion with a crown ---
 function renderMonthlyStaffTable(monthlyData) {
     const container = document.getElementById('staff-table-container');
     if (!monthlyData || monthlyData.labels.length === 0) {
@@ -183,6 +170,39 @@ function renderMonthlyStaffTable(monthlyData) {
         renderChartError('staff-table-container', '無關帳人員營收資料');
         return;
     }
+
+    const staffTotals = {};
+    const staffCounts = {};
+    staffList.forEach(staff => {
+        staffTotals[staff] = 0;
+        staffCounts[staff] = 0;
+    });
+
+    monthlyData.labels.forEach(month => {
+        const staffInMonth = monthlyData.staffRevenueData[month] || {};
+        staffList.forEach(staff => {
+            if (staffInMonth[staff] !== undefined) {
+                staffTotals[staff] += staffInMonth[staff];
+                staffCounts[staff]++;
+            }
+        });
+    });
+
+    const staffAverages = {};
+    staffList.forEach(staff => {
+        staffAverages[staff] = staffCounts[staff] > 0 ? Math.round(staffTotals[staff] / staffCounts[staff]) : 0;
+    });
+
+    // --- Find the average champion ---
+    let averageChampion = null;
+    let maxAverage = -1;
+    Object.entries(staffAverages).forEach(([staff, avg]) => {
+        if (avg > maxAverage) {
+            maxAverage = avg;
+            averageChampion = staff;
+        }
+    });
+    // --- End of finding champion ---
 
     const gridColsClass = `grid-cols-${staffList.length + 1}`;
     let tableHtml = `<div class="staff-revenue-table">`;
@@ -220,17 +240,31 @@ function renderMonthlyStaffTable(monthlyData) {
         tableHtml += `</div>`;
     });
 
+    tableHtml += `<div class="table-footer ${gridColsClass}">`;
+    tableHtml += `<div>平均</div>`;
+    staffList.forEach(staff => {
+        const isAvgChampion = staff === averageChampion ? 'is-avg-champion' : '';
+        // --- Add crown icon if champion ---
+        tableHtml += `
+            <div class="${isAvgChampion}">
+                ${isAvgChampion ? '<span class="avg-champion-crown material-symbols-outlined">workspace_premium</span>' : ''}
+                ${staffAverages[staff].toLocaleString()}
+            </div>`;
+    });
+    tableHtml += `</div>`;
+    
     tableHtml += `</div>`;
     container.innerHTML = tableHtml;
 
-    const tableHeader = container.querySelector('.table-header');
-    const tableRows = container.querySelectorAll('.table-row');
     const gridTemplate = `0.8fr ${'1fr '.repeat(staffList.length)}`.trim();
-    if (tableHeader) tableHeader.style.gridTemplateColumns = gridTemplate;
-    tableRows.forEach(row => { row.style.gridTemplateColumns = gridTemplate; });
+    container.querySelectorAll(`.${gridColsClass}`).forEach(el => {
+        el.style.gridTemplateColumns = gridTemplate;
+    });
 }
+// --- MODIFICATION END ---
 
-// --- Helper function to display errors in all components ---
+
+// --- Helper functions for error display ---
 function renderAllComponentsError() {
     const errorText = `<span class="text-sm text-red-400">讀取失敗</span>`;
     document.getElementById('metric-yesterday-revenue').innerHTML = errorText;

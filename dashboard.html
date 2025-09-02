@@ -15,7 +15,6 @@
     <style>
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #0d1a2e; background-image: radial-gradient(ellipse at 10% 20%, rgba(66, 153, 225, 0.25) 0%, transparent 70%), radial-gradient(ellipse at 90% 30%, rgba(213, 63, 140, 0.2) 0%, transparent 70%), radial-gradient(ellipse at 70% 85%, rgba(128, 90, 213, 0.25) 0%, transparent 70%); background-attachment: fixed; color: #E0E0E0; }
         .glass-card { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        /* Full-page loader for verification */
         .loader { position: fixed; inset: 0; z-index: 9999; background-color: rgba(10, 20, 35, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
         .ball-grid-pulse { width: 57px; display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 5px; }
         .ball-grid-pulse > div { width: 15px; height: 15px; background-color: #60a5fa; border-radius: 100%; animation: ball-grid-pulse 1.3s ease-in-out infinite; }
@@ -23,7 +22,6 @@
         @keyframes ball-grid-pulse { 0%, 70%, 100% { transform: scale(1); } 35% { transform: scale(0.1); } }
         .hidden { display: none !important; }
         
-        /* Per-component loaders */
         .metric-loader { display: flex; justify-content: center; align-items: center; min-height: 60px; }
         .chart-loader { display: flex; justify-content: center; align-items: center; min-height: 300px; }
         .metric-loader .dot, .chart-loader .dot { width: 8px; height: 8px; margin: 0 3px; background-color: #60a5fa; border-radius: 100%; display: inline-block; animation: sk-bouncedelay 1.4s infinite ease-in-out both; }
@@ -31,13 +29,31 @@
         .metric-loader .dot-2, .chart-loader .dot-2 { animation-delay: -0.16s; }
         @keyframes sk-bouncedelay { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
 
-        .staff-revenue-table .table-header, .staff-revenue-table .table-row { display: grid; gap: 0.75rem; padding: 0.5rem 0.75rem; align-items: center; }
+        .staff-revenue-table .table-header, .staff-revenue-table .table-row, .staff-revenue-table .table-footer { display: grid; gap: 0.75rem; padding: 0.5rem 0.75rem; align-items: center; }
         .staff-revenue-table .table-header { font-weight: 600; color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
         .staff-revenue-table .table-header > div { text-align: center; }
         .staff-revenue-table .table-row:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .staff-revenue-table .table-row > div { text-align: center; padding: 0.25rem; font-family: monospace; font-size: 0.95rem; }
+        .staff-revenue-table .table-row > div, .staff-revenue-table .table-footer > div { text-align: center; padding: 0.25rem; font-family: monospace; font-size: 0.95rem; }
         .staff-revenue-table .is-champion { background-color: #eab308; color: #1e293b; font-weight: 700; border-radius: 0.375rem; box-shadow: 0 0 15px rgba(234, 179, 8, 0.4); transform: scale(1.02); transition: all 0.2s ease-in-out; }
         
+        .staff-revenue-table .table-footer { margin-top: 0.5rem; padding-top: 0.75rem; border-top: 2px solid rgba(255, 255, 255, 0.15); font-weight: 600; color: #cbd5e1; }
+
+        /* --- MODIFICATION START: Styles for the average champion crown --- */
+        .is-avg-champion {
+            position: relative;
+            color: #fcd34d; /* Bright yellow color for the text */
+        }
+        .avg-champion-crown {
+            position: absolute;
+            top: -16px; /* Position above the number */
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            color: #f59e0b; /* A slightly darker, richer gold for the crown */
+            text-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+        }
+        /* --- MODIFICATION END --- */
+
         .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
         input[type="password"] { background-color: rgba(15, 23, 42, 0.7); border: 1px solid #334155; color: #e2e8f0; }
         input[type="password"]:focus { box-shadow: none; border-color: #38bdf8; background-color: #0f172a; }
