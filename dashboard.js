@@ -1,5 +1,5 @@
 // =================================================================
-// DASHBOARD PAGE LOGIC (`dashboard.html`) - v13 (Access Control)
+// DASHBOARD PAGE LOGIC (`dashboard.html`) - v15 (Fixed with Single API Call)
 // =================================================================
 
 // Global chart instances
@@ -10,35 +10,39 @@ Chart.defaults.color = '#94a3b8';
 Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
 
 
-// --- MODIFICATION START: Reworked initialization flow ---
+// --- MODIFICATION START: Reworked to use a single API call while maintaining UX ---
 async function initDashboardPage() {
-    // Show loader immediately while we check for verification
-    showLoader(); 
+    // Hide the main loader immediately, as we now use per-component loaders.
+    hideLoader(); 
     
     const verified = sessionStorage.getItem('dashboardAccessVerified');
     
     if (verified === 'true') {
-        await loadDashboardData();
+        // If already verified, show the dashboard structure and start loading data.
+        document.getElementById('dashboard-content').classList.remove('hidden');
+        loadAndRenderDashboard();
     } else {
-        hideLoader(); // Hide full-page loader
+        // If not verified, show the access modal.
         document.getElementById('access-modal').classList.remove('hidden');
     }
 
-    // Add event listener for the access form
+    // Add event listener for the access form submission.
     document.getElementById('access-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const codeInput = document.getElementById('access-code-input');
         const code = codeInput.value;
         if (!code) return;
 
-        showLoader(); // Show loader during verification
+        showLoader(); // Show full-page loader ONLY during the verification process.
         const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
         hideLoader();
 
         if (result && result.success) {
             sessionStorage.setItem('dashboardAccessVerified', 'true');
             document.getElementById('access-modal').classList.add('hidden');
-            await loadDashboardData();
+            // On successful verification, show dashboard and start loading data.
+            document.getElementById('dashboard-content').classList.remove('hidden');
+            loadAndRenderDashboard();
         } else {
             alert('存取碼錯誤！');
             codeInput.value = '';
@@ -47,27 +51,37 @@ async function initDashboardPage() {
     });
 }
 
-async function loadDashboardData() {
-    showLoader(); // Show loader while fetching data
-    document.getElementById('dashboard-content').classList.remove('hidden');
-    
+// New main function to load all data via a single API call and then render all components.
+async function loadAndRenderDashboard() {
     try {
+        // Use the original, valid 'getDashboardData' action to fetch all data at once.
         const result = await apiRequest('GET', { action: 'getDashboardData' });
+        
         if (result && result.data) {
+            // Once data is retrieved, render all components.
             renderDashboard(result.data);
         } else {
-            document.querySelector('main').innerHTML = '<p class="text-center text-red-400">儀表板資料載入失敗，請稍後再試。</p>';
+            // Handle cases where the API call succeeds but returns no data.
+            throw new Error("API returned no data.");
         }
     } catch (error) {
         console.error("Dashboard data loading failed:", error);
-    } finally {
-        hideLoader();
+        // If the single API call fails, show an error message in all components.
+        renderAllComponentsError();
     }
 }
 // --- MODIFICATION END ---
 
 
 function renderDashboard(data) {
+    // This function renders all components once the data is available.
+    renderMetrics(data);
+    render30DayTrendChart(data.last30DaysRevenue);
+    renderMonthlyRevenueChart(data.last12Months);
+    renderMonthlyStaffTable(data.last12Months);
+}
+
+function renderMetrics(data) {
     document.getElementById('metric-yesterday-revenue').innerText = `$ ${data.yesterdayRevenue.toLocaleString() || 'N/A'}`;
     document.getElementById('metric-current-month-revenue').innerText = `$ ${data.currentMonthRevenue.toLocaleString() || 'N/A'}`;
     document.getElementById('metric-prev-month-revenue').innerText = `$ ${data.prevMonthRevenue.toLocaleString() || 'N/A'}`;
@@ -92,10 +106,6 @@ function renderDashboard(data) {
 
     prevMonthMoMEl.innerHTML = createTrendHtml(data.prevMonthMoMTrend, '與前月相比');
     prevMonthYoYEl.innerHTML = createTrendHtml(data.prevMonthYoYTrend, '與去年同期相比');
-
-    render30DayTrendChart(data.last30DaysRevenue);
-    renderMonthlyRevenueChart(data.last12Months);
-    renderMonthlyStaffTable(data.last12Months);
 }
 
 function render30DayTrendChart(trendData) {
@@ -133,7 +143,7 @@ function renderMonthlyRevenueChart(monthlyData) {
     const container = document.getElementById('chart-container-monthly-revenue');
     const canvas = document.getElementById('chart-monthly-revenue');
     if (!monthlyData) {
-        container.innerHTML = '<p class="text-slate-400 text-center py-8">無資料</p>';
+        renderChartError('chart-container-monthly-revenue');
         return;
     }
     
@@ -159,7 +169,7 @@ function renderMonthlyRevenueChart(monthlyData) {
 function renderMonthlyStaffTable(monthlyData) {
     const container = document.getElementById('staff-table-container');
     if (!monthlyData || monthlyData.labels.length === 0) {
-        container.innerHTML = '<p class="text-slate-400 text-center py-8">無資料</p>';
+        renderChartError('staff-table-container', '無資料');
         return;
     }
 
@@ -168,6 +178,11 @@ function renderMonthlyStaffTable(monthlyData) {
         Object.keys(monthlyData.staffRevenueData[month] || {}).forEach(staff => allStaff.add(staff));
     });
     const staffList = Array.from(allStaff);
+
+    if (staffList.length === 0) {
+        renderChartError('staff-table-container', '無關帳人員營收資料');
+        return;
+    }
 
     const gridColsClass = `grid-cols-${staffList.length + 1}`;
     let tableHtml = `<div class="staff-revenue-table">`;
@@ -213,4 +228,26 @@ function renderMonthlyStaffTable(monthlyData) {
     const gridTemplate = `0.8fr ${'1fr '.repeat(staffList.length)}`.trim();
     if (tableHeader) tableHeader.style.gridTemplateColumns = gridTemplate;
     tableRows.forEach(row => { row.style.gridTemplateColumns = gridTemplate; });
+}
+
+// --- Helper function to display errors in all components ---
+function renderAllComponentsError() {
+    const errorText = `<span class="text-sm text-red-400">讀取失敗</span>`;
+    document.getElementById('metric-yesterday-revenue').innerHTML = errorText;
+    document.getElementById('metric-current-month-revenue').innerHTML = errorText;
+    document.getElementById('metric-prev-month-revenue').innerHTML = errorText;
+    document.getElementById('metric-soup-stock').innerHTML = errorText;
+    document.getElementById('metric-prev-month-mom-trend').innerHTML = '';
+    document.getElementById('metric-prev-month-yoy-trend').innerHTML = '';
+    
+    renderChartError('chart-container-30-day');
+    renderChartError('chart-container-monthly-revenue');
+    renderChartError('staff-table-container');
+}
+
+function renderChartError(containerId, message = '資料載入失敗') {
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.innerHTML = `<p class="text-slate-400 text-center py-8">${message}</p>`;
+    }
 }
