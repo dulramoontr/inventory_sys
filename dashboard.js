@@ -152,7 +152,7 @@ function renderMonthlyRevenueChart(monthlyData) {
     });
 }
 
-// --- MODIFICATION START: Added logic to find and display average champion with a crown ---
+
 function renderMonthlyStaffTable(monthlyData) {
     const container = document.getElementById('staff-table-container');
     if (!monthlyData || monthlyData.labels.length === 0) {
@@ -193,7 +193,6 @@ function renderMonthlyStaffTable(monthlyData) {
         staffAverages[staff] = staffCounts[staff] > 0 ? Math.round(staffTotals[staff] / staffCounts[staff]) : 0;
     });
 
-    // --- Find the average champion ---
     let averageChampion = null;
     let maxAverage = -1;
     Object.entries(staffAverages).forEach(([staff, avg]) => {
@@ -202,12 +201,11 @@ function renderMonthlyStaffTable(monthlyData) {
             averageChampion = staff;
         }
     });
-    // --- End of finding champion ---
 
-    const gridColsClass = `grid-cols-${staffList.length + 1}`;
     let tableHtml = `<div class="staff-revenue-table">`;
 
-    tableHtml += `<div class="table-header ${gridColsClass}">`;
+    // --- MODIFICATION START: Removed dynamic grid class from HTML generation ---
+    tableHtml += `<div class="table-header">`;
     tableHtml += `<div>月份</div>`;
     staffList.forEach(staff => { tableHtml += `<div>${staff}</div>`; });
     tableHtml += `</div>`;
@@ -224,7 +222,7 @@ function renderMonthlyStaffTable(monthlyData) {
             }
         });
 
-        tableHtml += `<div class="table-row ${gridColsClass}">`;
+        tableHtml += `<div class="table-row">`;
         
         const gregorianYear = parseInt(month.substring(0, 4));
         const rocYear = gregorianYear - 1911;
@@ -240,11 +238,10 @@ function renderMonthlyStaffTable(monthlyData) {
         tableHtml += `</div>`;
     });
 
-    tableHtml += `<div class="table-footer ${gridColsClass}">`;
+    tableHtml += `<div class="table-footer">`;
     tableHtml += `<div>平均</div>`;
     staffList.forEach(staff => {
         const isAvgChampion = staff === averageChampion ? 'is-avg-champion' : '';
-        // --- Add crown icon if champion ---
         tableHtml += `
             <div class="${isAvgChampion}">
                 ${isAvgChampion ? '<span class="avg-champion-crown material-symbols-outlined">workspace_premium</span>' : ''}
@@ -256,12 +253,13 @@ function renderMonthlyStaffTable(monthlyData) {
     tableHtml += `</div>`;
     container.innerHTML = tableHtml;
 
+    // --- MODIFICATION START: Apply grid template style reliably using stable selectors ---
     const gridTemplate = `0.8fr ${'1fr '.repeat(staffList.length)}`.trim();
-    container.querySelectorAll(`.${gridColsClass}`).forEach(el => {
+    container.querySelectorAll('.table-header, .table-row, .table-footer').forEach(el => {
         el.style.gridTemplateColumns = gridTemplate;
     });
+    // --- MODIFICATION END ---
 }
-// --- MODIFICATION END ---
 
 
 // --- Helper functions for error display ---
