@@ -4,7 +4,7 @@
 let GAS_URL = ''; 
 // This is the URL of your SCRIPT deployment, NOT the web app.
 // It is used ONLY to fetch the main web app URL.
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFjIYIIvVA93ta9xK6H4dFDdb8YYijdk3VQ5CG41KV7cepGNGYEl7Cs_g9d7tMoUi8fA/exec'; 
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbybvYy613HbHyu4pYE0Vww3wPZTh7EEKTtiwk_31uhnjyte5Y51fDrfiRjQcDVzkZQhFw/exec'; 
 // --- MODIFICATION END ---
 // =================================================================
 
@@ -85,8 +85,8 @@ async function apiRequest(method, payload) {
         
         let url = endpointUrl; // Use the dynamically fetched URL
         if (method === 'GET') {
-           url += `?action=${payload.action}`;
-           if(payload.logId) url += `&logId=${payload.logId}`;
+           const params = new URLSearchParams(payload);
+           url += `?${params.toString()}`;
         }
 
         const response = await fetch(url, options);
@@ -276,6 +276,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         case 'dashboard.html':
             initDashboardPage();
             break;
+        // --- MODIFICATION START ---
+        case 'dashboard-history.html':
+            initDashboardHistoryPage();
+            break;
+        // --- MODIFICATION END ---
         case 'index.html':
             hideLoader(); 
             break;

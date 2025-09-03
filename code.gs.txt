@@ -1,0 +1,349 @@
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const configSheet = ss.getSheetByName('Config');
+const itemsSheet = ss.getSheetByName('Items');
+const inventoryLogSheet = ss.getSheetByName('InventoryLog');
+const CACHE_EXPIRATION = 300; // 快取有效時間 (秒)，這裡設為 5 分鐘
+
+const BIZ_SHEET_ID = '1zJ78H9uyZ8JcI5SK7FbUzeI-exruWKrYwd2zw3AG6tE';
+
+
+// --- 快取處理函數 ---
+function getDataWithCache(sheet, cacheKey) {
+  const cache = CacheService.getScriptCache();
+  const cachedData = cache.get(cacheKey);
+  if (cachedData) {
+    return JSON.parse(cachedData);
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  cache.put(cacheKey, JSON.stringify(data), CACHE_EXPIRATION);
+  return data;
+}
+
+function invalidateCache(cacheKey) {
+  const cache = CacheService.getScriptCache();
+  cache.remove(cacheKey);
+}
+
+
+// --- API 端點 (doGet, doPost) ---
+function doGet(e) {
+  const action = e.parameter.action;
+  let result;
+  try {
+    switch (action) {
+      // --- MODIFICATION START: Add a new action to get the API endpoint URL ---
+      case 'getApiEndpoint':
+        const apiUrl = PropertiesService.getScriptProperties().getProperty('MAIN_API_URL');
+        result = { success: true, url: apiUrl };
+        break;
+      // --- MODIFICATION END ---
+      case 'getItems':
+        result = getItems();
+        break;
+      case 'getInventoryLogs':
+        result = getInventoryLogs();
+        break;
+      case 'getLogById':
+        result = getLogById(e.parameter.logId);
+        break;
+      case 'getDashboardData':
+        result = getDashboardData();
+        break;
+      default:
+        result = { success: false, message: 'Invalid action' };
+    }
+  } catch (error) {
+    result = { success: false, message: error.toString() };
+  }
+  
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  // ... (doPost 內容維持不變)
+  let result;
+  try {
+    const requestData = JSON.parse(e.postData.contents);
+    const action = requestData.action;
+
+    switch (action) {
+      case 'verifyAccessCode':
+        result = verifyAccessCode(requestData.code);
+        break;
+      case 'updateSettings':
+        result = updateSettings(requestData.payload);
+        break;
+      case 'saveInventory':
+        result = saveInventory(requestData.payload);
+        break;
+      case 'deleteInventoryLogs':
+        result = deleteInventoryLogs(requestData.payload);
+        break;
+      default:
+        result = { success: false, message: 'Invalid action' };
+    }
+  } catch (error) {
+    result = { success: false, message: error.message };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// --- 資料讀取 (GET) ---
+
+// ... (getItems, getInventoryLogs, getLogById 函式維持不變)
+function getItems() {
+  const data = getDataWithCache(itemsSheet, 'items_data');
+  const headers = data[0];
+  const items = data.slice(1).map(row => {
+    let item = {};
+    headers.forEach((header, i) => {
+      item[header] = row[i];
+    });
+    return item;
+  });
+  return { success: true, data: items };
+}
+
+function getInventoryLogs() {
+  const data = getDataWithCache(inventoryLogSheet, 'inventory_logs_data');
+  const logs = {};
+  data.slice(1).forEach(row => {
+    const logId = row[0];
+    if (!logs[logId]) {
+      logs[logId] = { logId: row[0], timestamp: row[1], category: row[2], items: [] };
+    }
+    logs[logId].items.push({ itemId: row[3], itemName: row[4], quantity: row[5] });
+  });
+  const sortedLogs = Object.values(logs).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  return { success: true, data: sortedLogs };
+}
+
+function getLogById(logId) {
+    const data = getDataWithCache(inventoryLogSheet, 'inventory_logs_data');
+    const logItems = [];
+    let logInfo = {};
+    for (let i = data.length - 1; i > 0; i--) {
+        const row = data[i];
+        if (row[0].toString() === logId) {
+            if (!logInfo.logId) {
+                logInfo = { logId: row[0], timestamp: row[1], category: row[2], items: [] };
+            }
+            logItems.unshift({ itemId: row[3], itemName: row[4], quantity: row[5] });
+        } else {
+            if(logInfo.logId) break;
+        }
+    }
+    if (logInfo.logId) {
+        logInfo.items = logItems;
+        return { success: true, data: logInfo };
+    } else {
+        return { success: false, message: "Log not found" };
+    }
+}
+
+
+// --- 優化後的儀表板資料函式 ---
+function getDashboardData() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'dashboard_data_v6';
+  // 更新快取鍵值
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  try {
+    const bizSs = SpreadsheetApp.openById(BIZ_SHEET_ID);
+    const sheet = bizSs.getSheets()[0];
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const dateIndex = headers.indexOf('date');
+    const staffIndex = headers.indexOf('關帳人員');
+    const revenueIndex = headers.indexOf('營業額');
+    const soupStockIndex = headers.indexOf('湯粉預估庫存');
+    const records = data.slice(1).map(row => {
+      const date = new Date(row[dateIndex]);
+      if (isNaN(date.getTime())) return null;
+      return {
+        date: date,
+        staff: row[staffIndex],
+        revenue: Number(row[revenueIndex]) || 0,
+        soupStock: Number(row[soupStockIndex]) || 0,
+      };
+    }).filter(r => r !== null)
+      .sort((a,b) => b.date - a.date);
+    if (records.length === 0) { return { success: true, data: { error: "No data found." } };
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    
+    const latestRecord = records[0];
+    const yesterdayRecord = records.find(r => r.date.toDateString() === yesterday.toDateString());
+    const yesterdayRevenue = yesterdayRecord ? yesterdayRecord.revenue : 0;
+    const latestSoupStock = latestRecord.soupStock;
+    let currentMonthRevenue = 0, prevMonthRevenue = 0, prevPrevMonthRevenue = 0, prevMonthLastYearRevenue = 0;
+    
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    const prevMonthDate = new Date(today); prevMonthDate.setMonth(currentMonth - 1);
+    const prevMonth = prevMonthDate.getMonth(); const prevMonthYear = prevMonthDate.getFullYear();
+    const prevPrevMonthDate = new Date(today); prevPrevMonthDate.setMonth(currentMonth - 2);
+    const prevPrevMonth = prevPrevMonthDate.getMonth(); const prevPrevMonthYear = prevPrevMonthDate.getFullYear();
+    const prevMonthLastYearDate = new Date(today); prevMonthLastYearDate.setFullYear(currentYear - 1); prevMonthLastYearDate.setMonth(currentMonth - 1);
+    const prevMonthLastYear = prevMonthLastYearDate.getMonth(); const prevMonthLastYear_Year = prevMonthLastYearDate.getFullYear();
+    records.forEach(r => {
+      const recordMonth = r.date.getMonth();
+      const recordYear = r.date.getFullYear();
+      if (recordYear === currentYear && recordMonth === currentMonth) {
+        currentMonthRevenue += r.revenue;
+      } else if (recordYear === prevMonthYear && recordMonth === prevMonth) {
+        prevMonthRevenue += r.revenue;
+      } else if (recordYear === prevPrevMonthYear && recordMonth === prevPrevMonth) {
+        prevPrevMonthRevenue += r.revenue;
+    
+      } else if (recordYear === prevMonthLastYear_Year && recordMonth === prevMonthLastYear) {
+        prevMonthLastYearRevenue += r.revenue;
+      }
+    });
+    const prevMonthMoMTrend = prevPrevMonthRevenue > 0 ? ((prevMonthRevenue - prevPrevMonthRevenue) / prevPrevMonthRevenue) * 100 : 0;
+    const prevMonthYoYTrend = prevMonthLastYearRevenue > 0 ? ((prevMonthRevenue - prevMonthLastYearRevenue) / prevMonthLastYearRevenue) * 100 : 0;
+    // --- MODIFICATION START: Adjust 30-day range calculation ---
+    const last30DaysRevenue = {};
+    const endDate30Days = new Date(today); // Today at 00:00 (exclusive)
+    const startDate30Days = new Date(today);
+    startDate30Days.setDate(today.getDate() - 30); // 30 days before today (inclusive)
+    
+    records.filter(r => r.date >= startDate30Days && r.date < endDate30Days).forEach(r => {
+      const dateString = Utilities.formatDate(r.date, "GMT+8", "M/d");
+      last30DaysRevenue[dateString] = (last30DaysRevenue[dateString] || 0) + r.revenue;
+    });
+    // Fill in gaps for the 30 days PRIOR to today (from yesterday backwards)
+    for(let i = 1; i <= 30; i++){
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateString = Utilities.formatDate(d, "GMT+8", "M/d");
+      if(!last30DaysRevenue[dateString]) {
+        last30DaysRevenue[dateString] = 0;
+      }
+    }
+    // --- MODIFICATION END ---
+
+    // ... (12-month trend calculations remain unchanged)
+    const monthlyRevenue = {}, monthlyStaffRevenue = {};
+    const endDate = new Date(today.getFullYear(), today.getMonth(), 1); 
+    const startDate = new Date(endDate.getFullYear() - 1, endDate.getMonth(), 1);
+    records.filter(r => r.date >= startDate && r.date < endDate).forEach(r => { const mKey = Utilities.formatDate(r.date, "GMT+8", "yyyy/MM"); monthlyRevenue[mKey] = (monthlyRevenue[mKey] || 0) + r.revenue; if (!monthlyStaffRevenue[mKey]) monthlyStaffRevenue[mKey] = {}; monthlyStaffRevenue[mKey][r.staff] = (monthlyStaffRevenue[mKey][r.staff] || 0) + r.revenue; });
+    const last12MonthsLabels = [];
+    for(let i=0; i < 12; i++){ const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+    const mKey = Utilities.formatDate(d, "GMT+8", "yyyy/MM"); last12MonthsLabels.push(mKey); }
+    const last12MonthlyRevenueData = last12MonthsLabels.map(key => monthlyRevenue[key] || 0);
+    const last12MonthlyStaffRevenueData = {};
+    last12MonthsLabels.forEach(key => { last12MonthlyStaffRevenueData[key] = monthlyStaffRevenue[key] || {}; });
+    const result = {
+      success: true,
+      data: {
+        yesterdayRevenue,
+        currentMonthRevenue,
+        prevMonthRevenue,
+        prevMonthMoMTrend,
+        prevMonthYoYTrend,
+        latestSoupStock,
+        last30DaysRevenue: Object.entries(last30DaysRevenue).sort((a,b) => new Date(a[0]) - new Date(b[0])),
+        last12Months: { labels: last12MonthsLabels, revenueData: last12MonthlyRevenueData, staffRevenueData: last12MonthlyStaffRevenueData },
+    
+        lastUpdated: new Date().toISOString()
+      }
+    };
+    
+    cache.put(cacheKey, JSON.stringify(result), 1800);
+    return result;
+
+  } catch(e) {
+    return { success: false, message: '無法讀取營運概況工作表: ' + e.toString() };
+  }
+}
+
+// --- 資料寫入 (POST) ---
+// ... (verifyAccessCode, updateSettings, saveInventory, deleteInventoryLogs 函式維持不變)
+function verifyAccessCode(code) {
+  const correctCode = configSheet.getRange('B2').getValue();
+  if (code === correctCode.toString()) {
+    return { success: true };
+  } else {
+    return { success: false, message: 'Incorrect access code' };
+  }
+}
+
+function updateSettings(payload) {
+    if (payload.newAccessCode) {
+        const oldCode = configSheet.getRange('B2').getValue();
+        if (payload.oldAccessCode === oldCode.toString()) {
+            configSheet.getRange('B2').setValue(payload.newAccessCode);
+        } else {
+            throw new Error('舊存取碼錯誤');
+        }
+    }
+    const itemsData = payload.items;
+    if (itemsData) {
+        const headers = itemsSheet.getRange(1, 1, 1, itemsSheet.getLastColumn()).getValues()[0];
+        if(itemsSheet.getLastRow() > 1) {
+          itemsSheet.getRange(2, 1, itemsSheet.getLastRow() - 1, itemsSheet.getLastColumn()).clearContent();
+        }
+        if (itemsData.length > 0) {
+          const newValues = itemsData.map(item => headers.map(header => item[header] || ""));
+          itemsSheet.getRange(2, 1, newValues.length, newValues[0].length).setValues(newValues);
+        }
+        invalidateCache('items_data');
+    }
+    return { success: true, message: '設定已更新' };
+}
+
+function saveInventory(payload) {
+  const timestamp = new Date();
+  const logId = Utilities.formatDate(timestamp, "GMT+8", "yyyyMMddHHmmss");
+  const records = payload.items.map(item => {
+    return [logId, timestamp, payload.category, item.itemId, item.itemName, item.quantity];
+  });
+  inventoryLogSheet.getRange(inventoryLogSheet.getLastRow() + 1, 1, records.length, records[0].length).setValues(records);
+  invalidateCache('inventory_logs_data');
+  return { success: true, message: '盤點紀錄已儲存', logId: logId };
+}
+
+function deleteInventoryLogs(payload) {
+  const logIdsToDelete = payload.logIds;
+  const accessCode = payload.accessCode;
+  const correctCode = configSheet.getRange('B2').getValue().toString();
+  if (accessCode !== correctCode) {
+    return { success: false, message: '存取碼錯誤' };
+  }
+  if (!logIdsToDelete || logIdsToDelete.length === 0) {
+    return { success: false, message: '沒有指定要刪除的紀錄' };
+  }
+  const data = inventoryLogSheet.getDataRange().getValues();
+  const rowsToDelete = [];
+  const logIdSet = new Set(logIdsToDelete.map(String));
+  data.forEach((row, index) => {
+    if (logIdSet.has(row[0].toString())) {
+      rowsToDelete.push(index + 1);
+    }
+  });
+  if (rowsToDelete.length === 0) {
+    return { success: false, message: '找不到對應的盤點紀錄' };
+  }
+  for (let i = rowsToDelete.length - 1; i >= 0; i--) {
+    inventoryLogSheet.deleteRow(rowsToDelete[i]);
+  }
+  invalidateCache('inventory_logs_data');
+  return { success: true, message: `${logIdsToDelete.length} 筆盤點紀錄已成功刪除` };
+}

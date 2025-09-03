@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>歷史營運資料 - 庫存系統</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2342a5f5'><path d='M19.82 10.18a4.01 4.01 0 00-1.09-2.5l1.2-2.08-2.31-1.33-1.2 2.08a4.01 4.01 0 00-2.5-.96V3h-2.66v2.39a4.01 4.01 0 00-2.5-.96L6.76 4.27 4.45 5.6l1.2 2.08a4.01 4.01 0 00-1.09 2.5L2 12l2.61 1.82a4.01 4.01 0 001.09 2.5l-1.2 2.08 2.31 1.33-1.2-2.08a4.01 4.01 0 002.5.96V21h2.66v-2.39a4.01 4.01 0 002.5-.96l1.2 2.08 2.31-1.33-1.2-2.08a4.01 4.01 0 001.09-2.5L22 12l-2.18-1.82zM12 15.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z'/></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #0d1a2e; background-image: radial-gradient(ellipse at 10% 20%, rgba(66, 153, 225, 0.25) 0%, transparent 70%), radial-gradient(ellipse at 90% 30%, rgba(213, 63, 140, 0.2) 0%, transparent 70%), radial-gradient(ellipse at 70% 85%, rgba(128, 90, 213, 0.25) 0%, transparent 70%); background-attachment: fixed; color: #E0E0E0; }
+        .glass-card { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .loader { position: fixed; inset: 0; z-index: 9999; background-color: rgba(10, 20, 35, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
+        .ball-grid-pulse { width: 57px; display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 5px; }
+        .ball-grid-pulse > div { width: 15px; height: 15px; background-color: #60a5fa; border-radius: 100%; animation: ball-grid-pulse 1.3s ease-in-out infinite; }
+        .ball-grid-pulse > div:nth-child(1) { animation-delay: 0.03s; } .ball-grid-pulse > div:nth-child(2) { animation-delay: 0.23s; } .ball-grid-pulse > div:nth-child(3) { animation-delay: 0.5s; } .ball-grid-pulse > div:nth-child(4) { animation-delay: 0.1s; } .ball-grid-pulse > div:nth-child(5) { animation-delay: 0.32s; } .ball-grid-pulse > div:nth-child(6) { animation-delay: 0.35s; } .ball-grid-pulse > div:nth-child(7) { animation-delay: -0.3s; } .ball-grid-pulse > div:nth-child(8) { animation-delay: 0.1s; } .ball-grid-pulse > div:nth-child(9) { animation-delay: -0.15s; }
+        @keyframes ball-grid-pulse { 0%, 70%, 100% { transform: scale(1); } 35% { transform: scale(0.1); } }
+        .hidden { display: none !important; }
+        .chart-loader { display: flex; justify-content: center; align-items: center; min-height: 300px; }
+        .chart-loader .dot { width: 8px; height: 8px; margin: 0 3px; background-color: #60a5fa; border-radius: 100%; display: inline-block; animation: sk-bouncedelay 1.4s infinite ease-in-out both; }
+        .chart-loader .dot-1 { animation-delay: -0.32s; } .chart-loader .dot-2 { animation-delay: -0.16s; }
+        @keyframes sk-bouncedelay { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+        .staff-revenue-table { width: 100%; border-collapse: collapse; }
+        .staff-revenue-table th, .staff-revenue-table td { text-align: center; padding: 0.6rem 0.25rem; font-family: monospace; font-size: 0.95rem; }
+        .staff-revenue-table thead th { font-weight: 600; color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .staff-revenue-table tbody tr:not(:last-child) td { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+        input[type="password"], input[type="date"] { background-color: rgba(15, 23, 42, 0.7); border: 1px solid #334155; color: #e2e8f0; }
+        input[type="password"]:focus, input[type="date"]:focus { box-shadow: none; border-color: #38bdf8; background-color: #0f172a; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+        .preset-btn { background-color: #1e293b; border: 1px solid #334155; transition: all 0.2s; }
+        .preset-btn:hover { background-color: #334155; border-color: #38bdf8; }
+        .staff-revenue-table span.is-champion {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            background-color: #eab308;
+            color: #1e2b3b;
+            font-weight: 700;
+            border-radius: 0.375rem;
+            box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="dashboard-content" class="container mx-auto max-w-7xl p-4 sm:p-6">
+
+        <header class="flex items-center justify-center relative my-8">
+            <a href="dashboard.html" class="absolute left-0 text-slate-300 hover:text-sky-400 transition" title="回到即時概況"><span class="material-symbols-outlined text-3xl">arrow_circle_left</span></a>
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-100 tracking-wider">歷史營運資料查詢</h1>
+            <a href="index.html" class="absolute right-0 text-slate-300 hover:text-sky-400 transition" title="回到首頁"><span class="material-symbols-outlined text-3xl">home</span></a>
+        </header>
+
+        <main class="space-y-6">
+            <div class="glass-card p-5 rounded-2xl">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                    <div>
+                        <label for="start-date" class="block text-sm font-medium text-slate-300 mb-2">開始日期</label>
+                        <input type="date" id="start-date" class="w-full p-2.5 rounded-lg">
+                    </div>
+                    <div>
+                        <label for="end-date" class="block text-sm font-medium text-slate-300 mb-2">結束日期</label>
+                        <input type="date" id="end-date" class="w-full p-2.5 rounded-lg">
+                    </div>
+                </div>
+                <div id="preset-buttons-container" class="flex flex-wrap gap-2 mt-4">
+                </div>
+                <button id="query-btn" class="mt-4 w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                    <span class="material-symbols-outlined">search</span>查詢資料
+                </button>
+            </div>
+            
+            <div id="results-container" class="space-y-6 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="glass-card p-5 rounded-2xl">
+                        <h3 class="text-slate-400 text-sm font-medium">期間總營業額</h3>
+                        <p id="metric-total-revenue" class="text-3xl font-bold text-slate-100 tracking-tight mt-1"></p>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl">
+                        <h3 class="text-slate-400 text-sm font-medium">期間日平均營業額</h3>
+                        <p id="metric-avg-daily-revenue" class="text-3xl font-bold text-slate-100 tracking-tight mt-1"></p>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl">
+                        <h3 class="text-slate-400 text-sm font-medium">營收最高月份</h3>
+                        <p id="metric-highest-month" class="text-3xl font-bold text-slate-100 tracking-tight mt-1"></p>
+                        <p id="metric-highest-month-revenue" class="text-sm text-slate-400"></p>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl">
+                        <h3 class="text-slate-400 text-sm font-medium">營收最高單日</h3>
+                        <p id="metric-highest-day" class="text-3xl font-bold text-slate-100 tracking-tight mt-1"></p>
+                        <p id="metric-highest-day-revenue" class="text-sm text-slate-400">
+                            $ 0 <span id="metric-highest-day-staff" class="font-semibold text-slate-300 ml-2"></span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card p-5 rounded-2xl">
+                        <h3 class="text-lg font-semibold text-slate-200">區間內每月營業額</h3>
+                        <div id="chart-container-monthly-revenue" class="mt-4"><canvas id="chart-monthly-revenue"></canvas></div>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl">
+                        <h3 class="text-lg font-semibold text-slate-200">區間內關帳人員營收</h3>
+                        <div id="staff-table-container" class="mt-4 overflow-x-auto"></div>
+                    </div>
+                </div>
+            </div>
+             <div id="message-container" class="hidden text-center py-10">
+                <p class="text-slate-400"></p>
+            </div>
+        </main>
+    </div>
+    
+    <div id="loader" class="loader hidden"><div class="loader-inner ball-grid-pulse"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+    
+    <script src="common.js"></script>
+    <script src="dashboard-history.js"></script>
+</body>
+</html>

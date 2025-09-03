@@ -30,66 +30,15 @@
         .metric-loader .dot-2, .chart-loader .dot-2 { animation-delay: -0.16s; }
         @keyframes sk-bouncedelay { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
         
-        .staff-revenue-table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-        .staff-revenue-table th,
-        .staff-revenue-table td {
-            text-align: center;
-            padding: 0.6rem 0.25rem;
-            font-family: monospace;
-            font-size: 0.95rem;
-            vertical-align: middle;
-        }
-        .staff-revenue-table thead th {
-            font-weight: 600;
-            color: #94a3b8;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .staff-revenue-table tbody tr:not(:last-child) td {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .staff-revenue-table tfoot td {
-            padding-top: 0.75rem;
-            border-top: 2px solid rgba(255, 255, 255, 0.15);
-            font-weight: 600;
-            color: #cbd5e1;
-        }
-        .staff-revenue-table th:first-child,
-        .staff-revenue-table td:first-child {
-            width: 28%;
-        }
-
-        /* --- MODIFICATION START: Refined champion and crown styles --- */
-        .staff-revenue-table span.is-champion {
-            display: inline-block; /* Allows padding and border-radius */
-            padding: 0.1rem 0.4rem; /* Vertical and horizontal padding */
-            background-color: #eab308;
-            color: #1e2b3b;
-            font-weight: 700;
-            border-radius: 0.375rem;
-            box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
-        }
-        .staff-revenue-table td.is-avg-champion {
-            position: relative;
-            color: #fcd34d;
-            vertical-align: middle; /* Ensure vertical alignment */
-        }
-        .avg-champion-crown {
-            position: absolute;
-            top: 2px; /* Adjust position to be above the number */
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 16px; /* Slightly smaller crown */
-            color: #f59e0b;
-            text-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
-        }
-        /* This rule is no longer needed and has been removed: */
-        /* .is-avg-champion span { margin-top: 14px; } */
-        /* --- MODIFICATION END --- */
-
+        .staff-revenue-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .staff-revenue-table th, .staff-revenue-table td { text-align: center; padding: 0.6rem 0.25rem; font-family: monospace; font-size: 0.95rem; vertical-align: middle; }
+        .staff-revenue-table thead th { font-weight: 600; color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .staff-revenue-table tbody tr:not(:last-child) td { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .staff-revenue-table tfoot td { padding-top: 0.75rem; border-top: 2px solid rgba(255, 255, 255, 0.15); font-weight: 600; color: #cbd5e1; }
+        .staff-revenue-table th:first-child, .staff-revenue-table td:first-child { width: 28%; }
+        .staff-revenue-table span.is-champion { display: inline-block; padding: 0.1rem 0.4rem; background-color: #eab308; color: #1e2b3b; font-weight: 700; border-radius: 0.375rem; box-shadow: 0 0 15px rgba(234, 179, 8, 0.4); }
+        .staff-revenue-table td.is-avg-champion { position: relative; color: #fcd34d; vertical-align: middle; }
+        .avg-champion-crown { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-size: 16px; color: #f59e0b; text-shadow: 0 0 10px rgba(245, 158, 11, 0.7); }
         .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
         input[type="password"] { background-color: rgba(15, 23, 42, 0.7); border: 1px solid #334155; color: #e2e8f0; }
         input[type="password"]:focus { box-shadow: none; border-color: #38bdf8; background-color: #0f172a; }
@@ -144,7 +93,14 @@
                     <div id="staff-table-container" class="mt-4"><div class="chart-loader"><div class="dot dot-1"></div><div class="dot dot-2"></div><div class="dot dot-3"></div></div></div>
                 </div>
             </div>
-        </main>
+
+            <a href="dashboard-history.html" class="glass-card block p-5 rounded-2xl text-center group hover:bg-slate-700/60 transition-colors duration-300">
+                <div class="flex items-center justify-center gap-3">
+                    <span class="material-symbols-outlined text-sky-400 text-3xl group-hover:scale-110 transition-transform">history</span>
+                    <span class="text-lg font-semibold text-slate-200">查詢歷史營運資料</span>
+                </div>
+            </a>
+            </main>
     </div>
 
     <div id="access-modal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
