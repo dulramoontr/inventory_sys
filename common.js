@@ -1,7 +1,11 @@
 // =================================================================
 // CONFIGURATION
-// Google Apps Script URL
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwZMCD8Sh3Vhx4dc0rpSUNTjhOdt-Sj7r9zQKN9AsvhfkJSvdstZWU9_IK8_3GDKz4GNg/exec';
+// --- MODIFICATION START: The GAS_URL will now be fetched dynamically ---
+let GAS_URL = ''; 
+// This is the URL of your SCRIPT deployment, NOT the web app.
+// It is used ONLY to fetch the main web app URL.
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFjIYIIvVA93ta9xK6H4dFDdb8YYijdk3VQ5CG41KV7cepGNGYEl7Cs_g9d7tMoUi8fA/exec'; 
+// --- MODIFICATION END ---
 // =================================================================
 
 // --- Global State ---
@@ -30,10 +34,47 @@ function getFormattedDateTime(timestampStr) {
     return date.toLocaleString('sv-SE'); // YYYY-MM-DD HH:MM:SS format
 }
 
+// --- MODIFICATION START: Logic to fetch the API endpoint first ---
+// A promise that resolves once the GAS_URL is fetched.
+let gasUrlPromise = null;
+
+async function getGasUrl() {
+    if (GAS_URL) return GAS_URL; // If already fetched, return it.
+
+    // If fetching hasn't started, start it.
+    if (!gasUrlPromise) { 
+        gasUrlPromise = new Promise(async (resolve, reject) => {
+            try {
+                // Use the static SCRIPT_URL to call the proxy function
+                const response = await fetch(`${SCRIPT_URL}?action=getApiEndpoint`);
+                if (!response.ok) throw new Error('無法取得 API 端點。');
+                
+                const result = await response.json();
+                if (result.success && result.url) {
+                    GAS_URL = result.url; // Store the fetched URL globally
+                    console.log("API Endpoint fetched successfully.");
+                    resolve(GAS_URL);
+                } else {
+                    throw new Error('API 端點回應無效。');
+                }
+            } catch (error) {
+                console.error("Failed to fetch GAS URL:", error);
+                document.body.innerHTML = `<div style="text-align: center; padding-top: 50px; color: white;"><h1>系統初始化失敗</h1><p>無法連接至後端服務，請檢查您的網路連線或聯繫管理員。</p><p>錯誤訊息: ${error.message}</p></div>`;
+                reject(error);
+            }
+        });
+    }
+
+    return gasUrlPromise;
+}
+// --- MODIFICATION END ---
+
+
 async function apiRequest(method, payload) {
-    // We will handle loader visibility inside the init functions for better control
-    // showLoader(); 
     try {
+        const endpointUrl = await getGasUrl(); // Ensure the URL is fetched before making a request
+        if (!endpointUrl) throw new Error("API URL is not available.");
+
         const options = {
             method: method,
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -42,7 +83,7 @@ async function apiRequest(method, payload) {
             options.body = JSON.stringify(payload);
         }
         
-        let url = GAS_URL;
+        let url = endpointUrl; // Use the dynamically fetched URL
         if (method === 'GET') {
            url += `?action=${payload.action}`;
            if(payload.logId) url += `&logId=${payload.logId}`;
@@ -58,7 +99,6 @@ async function apiRequest(method, payload) {
     } catch (error) {
         console.error('API Error:', error);
         alert(`發生錯誤: ${error.message}`);
-        // hideLoader is now handled in the calling function's finally block
         return null;
     } 
 }
@@ -207,8 +247,17 @@ async function shareToLineImage() {
 
 
 // --- Page Initializer Router ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     loader = document.getElementById('loader');
+    
+    // --- MODIFICATION: Ensure API URL is fetched before initializing any page logic ---
+    try {
+        showLoader();
+        await getGasUrl(); // Fetch and wait for the URL
+    } catch (error) {
+        hideLoader();
+        return; // Stop initialization if URL fetch fails
+    }
 
     const path = window.location.pathname.split("/").pop();
     switch (path) {
@@ -224,12 +273,10 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'veg-order.html':
             initVegOrderPage();
             break;
-        // --- 新增 dashboard 頁面路由 ---
         case 'dashboard.html':
             initDashboardPage();
             break;
         case 'index.html':
-            // No initialization needed for index page, hide loader immediately
             hideLoader(); 
             break;
         default:
