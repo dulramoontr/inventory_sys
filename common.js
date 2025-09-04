@@ -103,6 +103,39 @@ async function apiRequest(method, payload) {
     } 
 }
 
+
+// --- MODIFICATION START: Caching logic for items ---
+async function getCachedItems() {
+    try {
+        const versionResult = await apiRequest('GET', { action: 'getItemsVersion' });
+        const latestVersion = versionResult ? versionResult.version : null;
+
+        const cachedVersion = localStorage.getItem('itemsVersion');
+        const cachedItemsData = localStorage.getItem('cachedItems');
+
+        if (latestVersion && cachedVersion === latestVersion && cachedItemsData) {
+            console.log("Loading items from cache.");
+            return { success: true, data: JSON.parse(cachedItemsData) };
+        } else {
+            console.log("Fetching fresh items from server.");
+            const itemsResult = await apiRequest('GET', { action: 'getItems' });
+            if (itemsResult && itemsResult.data) {
+                localStorage.setItem('cachedItems', JSON.stringify(itemsResult.data));
+                if (latestVersion) {
+                    localStorage.setItem('itemsVersion', latestVersion);
+                }
+            }
+            return itemsResult;
+        }
+    } catch (error) {
+        console.error("Failed to get items (with cache):", error);
+        // Fallback to direct request if caching mechanism fails
+        return await apiRequest('GET', { action: 'getItems' });
+    }
+}
+// --- MODIFICATION END ---
+
+
 // --- MODIFICATION START: Button Loading State Helper ---
 function setButtonLoading(button, isLoading, loadingText = "處理中...") {
     if (isLoading) {

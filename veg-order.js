@@ -5,7 +5,11 @@ async function initVegOrderPage() {
     showLoader();
     try {
         setupFAB('fab-container-veg'); // Initialize floating button
-        const itemsResult = await apiRequest('GET', { action: 'getItems' });
+        
+        // --- MODIFICATION START: Use caching for items ---
+        const itemsResult = await getCachedItems();
+        // --- MODIFICATION END ---
+        
         if (itemsResult) {
              allItems = itemsResult.data;
              allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
@@ -14,7 +18,7 @@ async function initVegOrderPage() {
         currentItemCategory = '菜商';
         renderManualOrderForm();
         
-        // --- MODIFICATION START: Event delegation for dynamic clear buttons ---
+        // --- Event delegation for dynamic clear buttons ---
         const manualOrderContainer = document.getElementById('manual-order-section');
         
         // Handle click on clear button
@@ -38,7 +42,6 @@ async function initVegOrderPage() {
                 }
             }
         });
-        // --- MODIFICATION END ---
         
         // --- Search functionality logic ---
         const searchInput = document.getElementById('search-input');
@@ -103,7 +106,6 @@ function renderManualOrderForm() {
         
         itemDiv.dataset.itemName = item.ItemName;
 
-        // --- MODIFICATION START: Updated HTML structure with wrapper and clear button ---
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-200">${item.ItemName}</span>
@@ -117,7 +119,6 @@ function renderManualOrderForm() {
                 <span class="text-slate-400 w-12 text-left">${orderUnit}</span>
             </div>
         `;
-        // --- MODIFICATION END ---
         container.appendChild(itemDiv);
     });
     

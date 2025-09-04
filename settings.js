@@ -436,6 +436,11 @@ async function saveItemSettings() {
     setButtonLoading(saveBtn, false);
 
     if (result) {
+        // --- MODIFICATION START: Clear local cache after saving ---
+        localStorage.removeItem('cachedItems');
+        localStorage.removeItem('itemsVersion');
+        console.log("Local item cache cleared.");
+        // --- MODIFICATION END ---
         alert('品項設定已成功儲存！');
     }
 }

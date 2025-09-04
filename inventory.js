@@ -5,23 +5,40 @@ async function initInventoryPage() {
     showLoader();
     try {
         setupFAB('fab-container'); // Initialize floating button
-        const itemsResult = await apiRequest('GET', { action: 'getItems' });
-        if (itemsResult) {
+        
+        // --- MODIFICATION START: Use caching and async log loading ---
+        // 1. Fetch items (from cache or network), this is fast.
+        const itemsResult = await getCachedItems();
+        if (itemsResult && itemsResult.data) {
             allItems = itemsResult.data;
             allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+        } else {
+            // Handle case where items couldn't be loaded at all
+            console.error("Fatal: Could not load items.");
+            // Maybe show an error message to the user
+            hideLoader();
+            return;
         }
 
-        const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
-        if (logsResult) {
-            inventoryLogs = logsResult.data;
-            populateHistoryDropdown(inventoryLogs, 'history-select');
-        }
+        // 2. Render the primary UI immediately with the items data.
+        setupInventoryTabs();
+        renderInventoryList('央廚');
+        
+        // 3. Asynchronously fetch logs and populate the dropdown in the background.
+        // This part no longer blocks the initial page rendering.
+        apiRequest('GET', { action: 'getInventoryLogs' }).then(logsResult => {
+            if (logsResult && logsResult.data) {
+                inventoryLogs = logsResult.data;
+                populateHistoryDropdown(inventoryLogs, 'history-select');
+            }
+        });
+        // --- MODIFICATION END ---
 
         document.querySelector('#history-select').addEventListener('change', (e) => {
             loadHistoricalInventory(e.target.value);
         });
         
-        // --- MODIFICATION START: Event delegation for dynamic clear buttons ---
+        // --- Event delegation for dynamic clear buttons ---
         const inventoryListContainer = document.getElementById('inventory-list');
         
         // Handle click on clear button
@@ -45,12 +62,9 @@ async function initInventoryPage() {
                 }
             }
         });
-        // --- MODIFICATION END ---
-
-        setupInventoryTabs();
-        renderInventoryList('央廚');
-
+        
         document.getElementById('save-inventory-btn').addEventListener('click', saveInventory);
+
     } finally {
         hideLoader();
     }
@@ -78,7 +92,6 @@ function renderInventoryList(category) {
         const inventoryUnit = item.Unit_Inventory || item.Unit;
         const defaultValue = item.DefaultStock || '';
         
-        // --- MODIFICATION START: Updated HTML structure with wrapper and clear button ---
         itemDiv.innerHTML = `
             <div>
                 <span class="font-semibold text-slate-200">${item.ItemName} ${item.IsRequired ? '<span class="text-red-500">*</span>' : ''}</span>
@@ -92,7 +105,6 @@ function renderInventoryList(category) {
                 <span class="text-slate-400 w-12 text-left">${inventoryUnit}</span>
             </div>
         `;
-        // --- MODIFICATION END ---
         container.appendChild(itemDiv);
     });
 }
