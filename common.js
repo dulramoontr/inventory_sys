@@ -103,6 +103,24 @@ async function apiRequest(method, payload) {
     } 
 }
 
+// --- MODIFICATION START: Button Loading State Helper ---
+function setButtonLoading(button, isLoading, loadingText = "處理中...") {
+    if (isLoading) {
+        button.disabled = true;
+        button.dataset.originalText = button.innerHTML;
+        button.innerHTML = `
+            <span class="spinner"></span>
+            <span>${loadingText}</span>
+        `;
+    } else {
+        button.disabled = false;
+        if (button.dataset.originalText) {
+            button.innerHTML = button.dataset.originalText;
+        }
+    }
+}
+// --- MODIFICATION END ---
+
 // --- Floating Action Button (FAB) Logic ---
 function setupFAB(containerId) {
     const fabContainer = document.getElementById(containerId);

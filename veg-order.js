@@ -125,6 +125,9 @@ function renderManualOrderForm() {
 }
 
 function generateManualOrder() {
+    const generateBtn = document.getElementById('generate-order-btn');
+    setButtonLoading(generateBtn, true, "產生中...");
+
     document.getElementById('order-subtitle').textContent = '菜商叫貨單';
     document.getElementById('order-date').textContent = `日期：${getFormattedDateTime(new Date().toISOString())}`;
     
@@ -180,6 +183,8 @@ function generateManualOrder() {
     document.getElementById('order-preview').classList.remove('hidden');
     const actionButtons = document.getElementById('action-buttons');
     actionButtons.classList.remove('hidden');
+    
+    setButtonLoading(generateBtn, false);
 
     setTimeout(() => {
         actionButtons.scrollIntoView({ behavior: 'smooth', block: 'start' });

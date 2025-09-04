@@ -136,6 +136,7 @@ async function loadHistoricalInventory(logId) {
 }
 
 async function saveInventory() {
+    const saveBtn = document.getElementById('save-inventory-btn');
     const itemsToSave = [];
     let validationFailed = false;
     let firstInvalidElement = null;
@@ -182,8 +183,11 @@ async function saveInventory() {
         action: 'saveInventory',
         payload: { category: currentItemCategory, items: itemsToSave }
     };
-
+    
+    setButtonLoading(saveBtn, true, "儲存中...");
     const result = await apiRequest('POST', payload);
+    setButtonLoading(saveBtn, false);
+
     if (result && result.success) {
         alert('盤點儲存成功！');
         window.location.href = `order.html?logId=${result.logId}`;

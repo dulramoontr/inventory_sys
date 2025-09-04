@@ -18,11 +18,12 @@ async function initSettingsPage() {
         e.preventDefault();
         const codeInput = document.getElementById('access-code-input');
         const code = codeInput.value;
+        const submitBtn = e.target.querySelector('button[type="submit"]');
         if (!code) return;
 
-        showLoader();
+        setButtonLoading(submitBtn, true, "驗證中...");
         const result = await apiRequest('POST', { action: 'verifyAccessCode', code: code });
-        hideLoader();
+        setButtonLoading(submitBtn, false);
 
         if (result && result.success) {
             sessionStorage.setItem('settingsAccessVerified', 'true');
@@ -160,6 +161,7 @@ function updateDeleteButtonState() {
 }
 
 async function handleDeleteSelectedLogs() {
+    const deleteBtn = document.getElementById('delete-logs-btn');
     const selectedLogIds = Array.from(document.querySelectorAll('.log-checkbox:checked'))
                                 .map(cb => cb.dataset.logId);
 
@@ -185,8 +187,11 @@ async function handleDeleteSelectedLogs() {
             accessCode: code
         }
     };
-
+    
+    setButtonLoading(deleteBtn, true, "刪除中...");
     const result = await apiRequest('POST', payload);
+    setButtonLoading(deleteBtn, false);
+
     if (result && result.success) {
         alert(result.message || '紀錄已成功刪除！');
         inventoryLogs = inventoryLogs.filter(log => !selectedLogIds.includes(log.logId.toString()));
@@ -385,6 +390,7 @@ function updateItemsOrderFromDOM() {
 }
 
 async function saveAccessCode() {
+    const saveBtn = document.getElementById('save-code-btn');
     const oldAccessCode = document.getElementById('old-access-code').value;
     const newAccessCode = document.getElementById('new-access-code').value;
 
@@ -405,7 +411,10 @@ async function saveAccessCode() {
         }
     };
     
+    setButtonLoading(saveBtn, true, "儲存中...");
     const result = await apiRequest('POST', payload);
+    setButtonLoading(saveBtn, false);
+
     if (result) {
         alert('存取碼已成功更新！');
         document.getElementById('old-access-code').value = '';
@@ -414,14 +423,18 @@ async function saveAccessCode() {
 }
 
 async function saveItemSettings() {
+    const saveBtn = document.getElementById('save-items-btn');
     updateItemsOrderFromDOM();
     
     const payload = {
         action: 'updateSettings',
         payload: { items: allItems }
     };
-
+    
+    setButtonLoading(saveBtn, true, "儲存中...");
     const result = await apiRequest('POST', payload);
+    setButtonLoading(saveBtn, false);
+
     if (result) {
         alert('品項設定已成功儲存！');
     }

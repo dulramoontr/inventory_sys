@@ -98,6 +98,7 @@ function handlePresetClick(type, year) {
 async function handleQueryClick() {
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
+    const queryBtn = document.getElementById('query-btn');
 
     if (!startDate || !endDate) {
         alert('請選擇開始與結束日期');
@@ -109,6 +110,7 @@ async function handleQueryClick() {
         return;
     }
 
+    setButtonLoading(queryBtn, true, "查詢中...");
     showLoader();
     document.getElementById('results-container').classList.add('hidden');
     document.getElementById('message-container').classList.add('hidden');
@@ -120,12 +122,6 @@ async function handleQueryClick() {
             endDate: endDate 
         });
 
-        // --- MODIFICATION START: Add console log for debugging ---
-        if (result) {
-            console.log("後端回傳的原始資料:", result.data);
-        }
-        // --- MODIFICATION END ---
-
         if (result && result.success) {
             if (result.data.message) {
                  showMessage(result.data.message);
@@ -134,13 +130,14 @@ async function handleQueryClick() {
                 document.getElementById('results-container').classList.remove('hidden');
             }
         } else {
-            throw new Error(result.message || "API returned no data.");
+            throw new Error(result ? result.message : "API returned no data.");
         }
     } catch (error) {
         console.error("Dashboard data loading failed:", error);
         showMessage(`資料載入失敗: ${error.message}`);
     } finally {
         hideLoader();
+        setButtonLoading(queryBtn, false);
     }
 }
 
