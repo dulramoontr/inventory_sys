@@ -2,34 +2,19 @@
 // ORDER PAGE LOGIC (`order.html` - CK/Seafood)
 // =================================================================
 async function initOrderPage() {
-    showLoader(); // 在開始加載時顯示載入動畫
+    showLoader(); 
     try {
+        // 1. 先讀取品項資料 (這是必須的，且資料量通常較小)
         const itemsResult = await apiRequest('GET', { action: 'getItems' });
         if (itemsResult) {
              allItems = itemsResult.data;
              allItems.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
         }
 
-        const logsResult = await apiRequest('GET', { action: 'getInventoryLogs' });
-        if (logsResult) {
-            inventoryLogs = logsResult.data;
-            populateHistoryDropdown(inventoryLogs, 'order-history-select');
-        }
-        
+        // 2. 初始顯示 UI 與 Tabs 設定
         setupOrderTabs();
 
-        document.getElementById('order-history-select').addEventListener('change', (e) => {
-            generateOrderList(e.target.value);
-        });
-        
-        // Add event listener for the holiday mode toggle
-        document.getElementById('holiday-mode-toggle').addEventListener('change', () => {
-            const selectedLogId = document.getElementById('order-history-select').value;
-            if (selectedLogId) {
-                generateOrderList(selectedLogId);
-            }
-        });
-
+        // 3. 處理 URL 中的特定 logId (如果有，則優先讀取該筆)
         const urlParams = new URLSearchParams(window.location.search);
         const logId = urlParams.get('logId');
         if (logId) {
@@ -42,14 +27,44 @@ async function initOrderPage() {
                 await generateOrderList(logId);
             }
         } else {
-           handleOrderTabClick('央廚'); // Default to the first tab
+           handleOrderTabClick('央廚'); 
         }
+
+        // 4. 【優化關鍵】歷史紀錄改為背景讀取，不阻塞頁面顯示
+        apiRequest('GET', { action: 'getInventoryLogs' }).then(logsResult => {
+            if (logsResult && logsResult.data) {
+                inventoryLogs = logsResult.data; // 儲存清單
+                populateHistoryDropdown(inventoryLogs, 'order-history-select'); // 填充選單
+
+                // 3. 【關鍵】清單讀取完畢後，立即為當前分類抓取「最新一筆」
+                const activeTab = document.querySelector('.tabs .tab-link.active');
+                const category = activeTab ? activeTab.dataset.category : '央廚';
+                
+                const latestLog = inventoryLogs.find(log => log.category === category);
+                if (latestLog) {
+                    document.getElementById('order-history-select').value = latestLog.logId;
+                    generateOrderList(latestLog.logId); // 執行產單
+                }
+            }
+        });
+
+
+        // 設定其他事件監聽
+        document.getElementById('order-history-select').addEventListener('change', (e) => {
+            generateOrderList(e.target.value);
+        });
+        
+        document.getElementById('holiday-mode-toggle').addEventListener('change', () => {
+            const selectedLogId = document.getElementById('order-history-select').value;
+            if (selectedLogId) generateOrderList(selectedLogId);
+        });
 
         document.getElementById('copy-text-btn').addEventListener('click', copyOrderText);
         document.getElementById('share-line-text-btn').addEventListener('click', shareToLineText);
         document.getElementById('share-line-img-btn').addEventListener('click', shareToLineImage);
+
     } finally {
-        hideLoader(); // 在所有初始化完成後隱藏載入動畫
+        hideLoader(); // 儘快隱藏載入動畫，讓 UI 可互動
     }
 }
 

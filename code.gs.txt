@@ -3,6 +3,7 @@ const configSheet = ss.getSheetByName('Config');
 const itemsSheet = ss.getSheetByName('Items');
 const inventoryLogSheet = ss.getSheetByName('InventoryLog');
 const CACHE_EXPIRATION = 300; // 快取有效時間 (秒)，這裡設為 5 分鐘
+const CACHE_EXPIRATION_LONG = 21600; // 長時間快取 (6小時) for historical data
 
 const BIZ_SHEET_ID = '1zJ78H9uyZ8JcI5SK7FbUzeI-exruWKrYwd2zw3AG6tE';
 
@@ -32,12 +33,10 @@ function doGet(e) {
   let result;
   try {
     switch (action) {
-      // --- MODIFICATION START: Add a new action to get the API endpoint URL ---
       case 'getApiEndpoint':
         const apiUrl = PropertiesService.getScriptProperties().getProperty('MAIN_API_URL');
         result = { success: true, url: apiUrl };
         break;
-      // --- MODIFICATION END ---
       case 'getItems':
         result = getItems();
         break;
@@ -49,6 +48,9 @@ function doGet(e) {
         break;
       case 'getDashboardData':
         result = getDashboardData();
+        break;
+      case 'getHistoricalDashboardData':
+        result = getHistoricalDashboardData(e.parameter.startDate, e.parameter.endDate);
         break;
       default:
         result = { success: false, message: 'Invalid action' };
@@ -63,7 +65,6 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  // ... (doPost 內容維持不變)
   let result;
   try {
     const requestData = JSON.parse(e.postData.contents);
@@ -97,7 +98,6 @@ function doPost(e) {
 
 // --- 資料讀取 (GET) ---
 
-// ... (getItems, getInventoryLogs, getLogById 函式維持不變)
 function getItems() {
   const data = getDataWithCache(itemsSheet, 'items_data');
   const headers = data[0];
@@ -114,13 +114,28 @@ function getItems() {
 function getInventoryLogs() {
   const data = getDataWithCache(inventoryLogSheet, 'inventory_logs_data');
   const logs = {};
-  data.slice(1).forEach(row => {
-    const logId = row[0];
+  const logIdList = []; // 用來追蹤出現順序
+  const LIMIT = 50; // 僅回傳最近的 50 筆紀錄
+
+  // 從最後一行往前讀取，獲取最新的紀錄
+  for (let i = data.length - 1; i > 0; i--) {
+    const row = data[i];
+    const logId = row[0].toString();
+    
     if (!logs[logId]) {
-      logs[logId] = { logId: row[0], timestamp: row[1], category: row[2], items: [] };
+      if (logIdList.length >= LIMIT) continue; // 超過限制則跳過新的 logId
+      
+      // 優化：只回傳選單需要的資訊，不回傳 items 明細以減輕傳輸量
+      logs[logId] = { 
+        logId: row[0], 
+        timestamp: row[1], 
+        category: row[2] 
+      };
+      logIdList.push(logId);
     }
-    logs[logId].items.push({ itemId: row[3], itemName: row[4], quantity: row[5] });
-  });
+  }
+
+  // 將物件轉回陣列並按時間排序
   const sortedLogs = Object.values(logs).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   return { success: true, data: sortedLogs };
 }
@@ -149,11 +164,9 @@ function getLogById(logId) {
 }
 
 
-// --- 優化後的儀表板資料函式 ---
 function getDashboardData() {
   const cache = CacheService.getScriptCache();
   const cacheKey = 'dashboard_data_v6';
-  // 更新快取鍵值
   const cached = cache.get(cacheKey);
   if (cached) {
     return JSON.parse(cached);
@@ -179,8 +192,7 @@ function getDashboardData() {
       };
     }).filter(r => r !== null)
       .sort((a,b) => b.date - a.date);
-    if (records.length === 0) { return { success: true, data: { error: "No data found." } };
-    }
+    if (records.length === 0) { return { success: true, data: { error: "No data found." } }; }
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -202,6 +214,7 @@ function getDashboardData() {
     const prevPrevMonth = prevPrevMonthDate.getMonth(); const prevPrevMonthYear = prevPrevMonthDate.getFullYear();
     const prevMonthLastYearDate = new Date(today); prevMonthLastYearDate.setFullYear(currentYear - 1); prevMonthLastYearDate.setMonth(currentMonth - 1);
     const prevMonthLastYear = prevMonthLastYearDate.getMonth(); const prevMonthLastYear_Year = prevMonthLastYearDate.getFullYear();
+
     records.forEach(r => {
       const recordMonth = r.date.getMonth();
       const recordYear = r.date.getFullYear();
@@ -218,17 +231,17 @@ function getDashboardData() {
     });
     const prevMonthMoMTrend = prevPrevMonthRevenue > 0 ? ((prevMonthRevenue - prevPrevMonthRevenue) / prevPrevMonthRevenue) * 100 : 0;
     const prevMonthYoYTrend = prevMonthLastYearRevenue > 0 ? ((prevMonthRevenue - prevMonthLastYearRevenue) / prevMonthLastYearRevenue) * 100 : 0;
-    // --- MODIFICATION START: Adjust 30-day range calculation ---
+
     const last30DaysRevenue = {};
-    const endDate30Days = new Date(today); // Today at 00:00 (exclusive)
+    const endDate30Days = new Date(today);
     const startDate30Days = new Date(today);
-    startDate30Days.setDate(today.getDate() - 30); // 30 days before today (inclusive)
+    startDate30Days.setDate(today.getDate() - 30);
     
     records.filter(r => r.date >= startDate30Days && r.date < endDate30Days).forEach(r => {
       const dateString = Utilities.formatDate(r.date, "GMT+8", "M/d");
       last30DaysRevenue[dateString] = (last30DaysRevenue[dateString] || 0) + r.revenue;
     });
-    // Fill in gaps for the 30 days PRIOR to today (from yesterday backwards)
+
     for(let i = 1; i <= 30; i++){
       const d = new Date(today);
       d.setDate(today.getDate() - i);
@@ -237,19 +250,17 @@ function getDashboardData() {
         last30DaysRevenue[dateString] = 0;
       }
     }
-    // --- MODIFICATION END ---
 
-    // ... (12-month trend calculations remain unchanged)
     const monthlyRevenue = {}, monthlyStaffRevenue = {};
     const endDate = new Date(today.getFullYear(), today.getMonth(), 1); 
     const startDate = new Date(endDate.getFullYear() - 1, endDate.getMonth(), 1);
     records.filter(r => r.date >= startDate && r.date < endDate).forEach(r => { const mKey = Utilities.formatDate(r.date, "GMT+8", "yyyy/MM"); monthlyRevenue[mKey] = (monthlyRevenue[mKey] || 0) + r.revenue; if (!monthlyStaffRevenue[mKey]) monthlyStaffRevenue[mKey] = {}; monthlyStaffRevenue[mKey][r.staff] = (monthlyStaffRevenue[mKey][r.staff] || 0) + r.revenue; });
     const last12MonthsLabels = [];
-    for(let i=0; i < 12; i++){ const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
-    const mKey = Utilities.formatDate(d, "GMT+8", "yyyy/MM"); last12MonthsLabels.push(mKey); }
+    for(let i=0; i < 12; i++){ const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1); const mKey = Utilities.formatDate(d, "GMT+8", "yyyy/MM"); last12MonthsLabels.push(mKey); }
     const last12MonthlyRevenueData = last12MonthsLabels.map(key => monthlyRevenue[key] || 0);
     const last12MonthlyStaffRevenueData = {};
     last12MonthsLabels.forEach(key => { last12MonthlyStaffRevenueData[key] = monthlyStaffRevenue[key] || {}; });
+    
     const result = {
       success: true,
       data: {
@@ -261,11 +272,9 @@ function getDashboardData() {
         latestSoupStock,
         last30DaysRevenue: Object.entries(last30DaysRevenue).sort((a,b) => new Date(a[0]) - new Date(b[0])),
         last12Months: { labels: last12MonthsLabels, revenueData: last12MonthlyRevenueData, staffRevenueData: last12MonthlyStaffRevenueData },
-    
         lastUpdated: new Date().toISOString()
       }
     };
-    
     cache.put(cacheKey, JSON.stringify(result), 1800);
     return result;
 
@@ -274,8 +283,103 @@ function getDashboardData() {
   }
 }
 
+// --- MODIFICATION START: Final definitive fix for historical data ---
+function getHistoricalDashboardData(startDateStr, endDateStr) {
+    if (!startDateStr || !endDateStr) {
+        return { success: false, message: 'Missing start or end date.' };
+    }
+
+    const cache = CacheService.getScriptCache();
+    const cacheKey = `historical_data_v10_final_${startDateStr}_${endDateStr}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+        return JSON.parse(cached);
+    }
+
+    try {
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(endDateStr);
+        endDate.setHours(23, 59, 59, 999); 
+
+        const bizSs = SpreadsheetApp.openById(BIZ_SHEET_ID);
+        const sheet = bizSs.getSheets()[0];
+        const data = sheet.getDataRange().getValues();
+        const headers = data[0];
+        const dateIndex = headers.indexOf('date');
+        const staffIndex = headers.indexOf('關帳人員');
+        const revenueIndex = headers.indexOf('營業額');
+
+        const records = data.slice(1).map(row => {
+            const date = new Date(row[dateIndex]);
+            if (isNaN(date.getTime())) return null;
+            return {
+                date: date,
+                staff: row[staffIndex] || '',
+                revenue: Number(row[revenueIndex]) || 0,
+            };
+        }).filter(r => r !== null && r.date >= startDate && r.date <= endDate);
+
+        if (records.length === 0) {
+            return { success: true, data: { message: "指定區間內沒有資料。" } };
+        }
+        
+        const highestRecord = records.reduce((max, current) => {
+            return current.revenue > max.revenue ? current : max;
+        }, { revenue: -1, staff: '', date: null });
+        
+        let totalRevenue = 0;
+        const monthlyRevenue = {};
+        const monthlyStaffRevenue = {};
+        
+        records.forEach(r => {
+            totalRevenue += r.revenue;
+            const mKey = Utilities.formatDate(r.date, "GMT+8", "yyyy/MM");
+            monthlyRevenue[mKey] = (monthlyRevenue[mKey] || 0) + r.revenue;
+            
+            if (!monthlyStaffRevenue[mKey]) monthlyStaffRevenue[mKey] = {};
+            if(r.staff) {
+              monthlyStaffRevenue[mKey][r.staff] = (monthlyStaffRevenue[mKey][r.staff] || 0) + r.revenue;
+            }
+        });
+
+        const avgDailyRevenue = records.length > 0 ? totalRevenue / records.length : 0;
+        const highestMonth = Object.entries(monthlyRevenue).reduce((max, month) => month[1] > max[1] ? month : max, ["", 0]);
+        const monthLabels = Object.keys(monthlyRevenue).sort();
+        const monthlyRevenueData = monthLabels.map(key => monthlyRevenue[key] || 0);
+        
+        const result = {
+            success: true,
+            data: {
+                totalRevenue,
+                avgDailyRevenue,
+                recordCount: records.length,
+                highestDay: { 
+                    date: highestRecord.date ? Utilities.formatDate(highestRecord.date, "GMT+8", "yyyy-MM-dd") : 'N/A',
+                    revenue: highestRecord.revenue,
+                    staff: highestRecord.staff || ''
+                },
+                highestMonth: {
+                    month: highestMonth[0],
+                    revenue: highestMonth[1]
+                },
+                monthlyData: {
+                    labels: monthLabels,
+                    revenueData: monthlyRevenueData,
+                    staffRevenueData: monthlyStaffRevenue
+                },
+            }
+        };
+
+        cache.put(cacheKey, JSON.stringify(result), CACHE_EXPIRATION_LONG);
+        return result;
+
+    } catch (e) {
+        return { success: false, message: '讀取歷史資料時發生錯誤: ' + e.toString() };
+    }
+}
+// --- MODIFICATION END ---
+
 // --- 資料寫入 (POST) ---
-// ... (verifyAccessCode, updateSettings, saveInventory, deleteInventoryLogs 函式維持不變)
 function verifyAccessCode(code) {
   const correctCode = configSheet.getRange('B2').getValue();
   if (code === correctCode.toString()) {
