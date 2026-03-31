@@ -109,6 +109,8 @@ async function handleQueryClick() {
         alert('開始日期不能晚於結束日期');
         return;
     }
+    const startDateFormatted = startDateRaw.replace(/-/g, '/');
+    const endDateFormatted = endDateRaw.replace(/-/g, '/');
 
     setButtonLoading(queryBtn, true, "查詢中...");
     showLoader();
@@ -118,8 +120,8 @@ async function handleQueryClick() {
     try {
         const result = await apiRequest('GET', { 
             action: 'getHistoricalDashboardData', 
-            startDate: startDate, 
-            endDate: endDate 
+            startDate: startDateFormatted, 
+            endDate: endDateFormatted     
         });
 
         if (result && result.success) {
