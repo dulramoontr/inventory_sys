@@ -109,10 +109,14 @@ async function handleQueryClick() {
         alert('開始日期不能晚於結束日期');
         return;
     }
-    const startDateFormatted = startDateRaw.replace(/-/g, '/');
-    const endDateFormatted = endDateRaw.replace(/-/g, '/');
+    
+    const startDateFormatted = startDate.replace(/-/g, '/');
+    const endDateFormatted = endDate.replace(/-/g, '/');
 
-    setButtonLoading(queryBtn, true, "查詢中...");
+    if (typeof setButtonLoading === 'function') {
+        setButtonLoading(queryBtn, true, "查詢中...");
+    }
+    
     showLoader();
     document.getElementById('results-container').classList.add('hidden');
     document.getElementById('message-container').classList.add('hidden');
@@ -139,7 +143,9 @@ async function handleQueryClick() {
         showMessage(`資料載入失敗: ${error.message}`);
     } finally {
         hideLoader();
-        setButtonLoading(queryBtn, false);
+        if (typeof setButtonLoading === 'function') {
+            setButtonLoading(queryBtn, false);
+        }
     }
 }
 
